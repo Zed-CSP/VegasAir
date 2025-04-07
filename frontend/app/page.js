@@ -5,6 +5,7 @@ import axios from 'axios';
 import SeatGrid from './components/SeatGrid';
 import Legend from './components/Legend';
 import SelectedSeatModal from './components/SelectedSeatModal';
+import CountdownTimer from './components/CountdownTimer';
 import useWebSocket from './hooks/useWebSocket';
 
 export default function Home() {
@@ -12,6 +13,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedSeat, setSelectedSeat] = useState(null);
+  const [daysUntilDeparture, setDaysUntilDeparture] = useState(0);
   const flightId = 1; // For now, we're only working with flight 1
 
   // Handle incoming WebSocket messages
@@ -22,6 +24,8 @@ export default function Home() {
           seat.id === data.seat.id ? { ...seat, ...data.seat } : seat
         )
       );
+    } else if (data.type === 'TIME_UPDATE') {
+      setDaysUntilDeparture(data.days_until_departure);
     }
   };
 
@@ -29,13 +33,19 @@ export default function Home() {
   const { sendMessage } = useWebSocket(flightId, handleWebSocketMessage);
 
   useEffect(() => {
-    fetchSeats();
+    fetchFlightData();
   }, []);
 
-  const fetchSeats = async () => {
+  const fetchFlightData = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/v1/flights/${flightId}/seats`);
-      setSeats(response.data);
+      // Fetch seats
+      const seatsResponse = await axios.get(`http://localhost:8000/api/v1/flights/${flightId}/seats`);
+      setSeats(seatsResponse.data);
+      
+      // Fetch flight details including days until departure
+      const flightResponse = await axios.get(`http://localhost:8000/api/v1/flights/${flightId}`);
+      setDaysUntilDeparture(flightResponse.data.days_until_departure);
+      
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -81,7 +91,9 @@ export default function Home() {
 
   return (
     <div className="container">
-      <h1 style={{ textAlign: 'center', marginBottom: '30px' }}>VegasAir Flight 001</h1>
+      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>VegasAir Flight 001</h1>
+      
+      <CountdownTimer daysUntilDeparture={daysUntilDeparture} />
       
       <SelectedSeatModal 
         selectedSeat={selectedSeat}

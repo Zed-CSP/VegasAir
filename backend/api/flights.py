@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from typing import List
+import asyncio
+from datetime import datetime, timedelta
 
 from database import get_db, SessionLocal
 from models.flight import Flight
@@ -13,6 +15,22 @@ router = APIRouter()
 def get_flights(db: Session = Depends(get_db)):
     flights = db.query(Flight).all()
     return [{"id": flight.id, "flight_number": flight.flight_number} for flight in flights]
+
+@router.get("/flights/{flight_id}", response_model=dict)
+def get_flight(flight_id: int, db: Session = Depends(get_db)):
+    flight = db.query(Flight).filter(Flight.id == flight_id).first()
+    if not flight:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    
+    # Get the first seat to get the days_until_departure
+    seat = db.query(Seat).filter(Seat.flight_id == flight_id).first()
+    days_until_departure = seat.days_until_departure if seat else 0
+    
+    return {
+        "id": flight.id,
+        "flight_number": flight.flight_number,
+        "days_until_departure": days_until_departure
+    }
 
 @router.get("/flights/{flight_id}/seats", response_model=List[dict])
 def get_flight_seats(flight_id: int, db: Session = Depends(get_db)):
@@ -42,6 +60,10 @@ def get_flight_seats(flight_id: int, db: Session = Depends(get_db)):
 @router.websocket("/ws/flight/{flight_id}")
 async def websocket_endpoint(websocket: WebSocket, flight_id: int):
     await manager.connect(websocket, flight_id)
+    
+    # Start a background task to update the countdown timer
+    asyncio.create_task(update_countdown(flight_id, websocket))
+    
     try:
         while True:
             # Wait for messages from the client
@@ -78,4 +100,41 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
                         db.close()
             
     except WebSocketDisconnect:
-        manager.disconnect(websocket, flight_id) 
+        manager.disconnect(websocket, flight_id)
+
+async def update_countdown(flight_id: int, websocket: WebSocket):
+    """Background task to update the countdown timer"""
+    db = SessionLocal()
+    try:
+        # Get the first seat to get the days_until_departure
+        seat = db.query(Seat).filter(Seat.flight_id == flight_id).first()
+        if not seat:
+            return
+        
+        days_until_departure = seat.days_until_departure
+        
+        # Send initial countdown
+        await websocket.send_json({
+            "type": "TIME_UPDATE",
+            "days_until_departure": days_until_departure
+        })
+        
+        # Update the countdown every hour
+        while True:
+            await asyncio.sleep(3600)  # Sleep for 1 hour
+            
+            # Update days_until_departure in the database
+            seat.days_until_departure = max(0, seat.days_until_departure - 1)
+            db.commit()
+            
+            # Broadcast the update to all clients
+            await manager.broadcast_to_flight(flight_id, {
+                "type": "TIME_UPDATE",
+                "days_until_departure": seat.days_until_departure
+            })
+            
+            # If we've reached 0 days, stop updating
+            if seat.days_until_departure <= 0:
+                break
+    finally:
+        db.close() 

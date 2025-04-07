@@ -7,10 +7,6 @@ class Flight(BaseModel):
     __tablename__ = "flights"
 
     flight_number = Column(String(3), unique=True, index=True)  # Format: 001, 002, etc.
-    departure_airport = Column(String, index=True)
-    arrival_airport = Column(String, index=True)
-    departure_time = Column(DateTime, index=True)
-    arrival_time = Column(DateTime, index=True)
     
     # Relationship to seats
     seats = relationship("Seat", back_populates="flight", cascade="all, delete-orphan")
