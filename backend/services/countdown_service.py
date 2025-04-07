@@ -53,12 +53,12 @@ class CountdownService:
                 except Exception as e:
                     print(f"Error sending time update: {e}")
                 
-                # Wait for 0.2 seconds (1 hour in our simulation)
-                await asyncio.sleep(0.2)
+                # Wait for a second (2 hours in our simulation)
+                await asyncio.sleep(1)
                 
-                # Update hours remaining (decrement by 1 hour)
+                # Update hours remaining (decrement by 2 hours)
                 if flight_id in self._hours_remaining:
-                    self._hours_remaining[flight_id] -= 1
+                    self._hours_remaining[flight_id] -= 2
                 
                 # If we've reached zero, stop
                 if self._hours_remaining.get(flight_id, 0) <= 0:

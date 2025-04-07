@@ -56,14 +56,14 @@ class BotService:
         try:
             # Wait for the countdown service to be ready
             while flight_id not in countdown_service._hours_remaining:
-                await asyncio.sleep(0.2)  # Match the countdown service's time scale
+                await asyncio.sleep(1)
             
             # Get the initial hours remaining
             hours_remaining = countdown_service._hours_remaining[flight_id]
             days_remaining = hours_remaining // 24
             
             # Calculate the base purchase rate (purchases per day)
-            base_rate = 0.5
+            base_rate = 0.5  # Average 0.5 purchases per day
             
             # Run until the flight departs
             while hours_remaining > 0:
@@ -81,8 +81,8 @@ class BotService:
                         # Make the purchase
                         await self._make_purchase(flight_id, seat)
                 
-                # Wait for the next hour (0.2 seconds in our simulation)
-                await asyncio.sleep(0.2)
+                # Wait for the next hour (1 second in our simulation)
+                await asyncio.sleep(1)
                 
                 # Update hours remaining
                 hours_remaining = countdown_service._hours_remaining.get(flight_id, 0)
