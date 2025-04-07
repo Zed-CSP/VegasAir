@@ -9,6 +9,7 @@ from models.flight import Flight
 from models.seat import Seat
 from ws_manager import manager
 from services.countdown_service import countdown_service
+from services.bot_service import bot_service
 
 router = APIRouter()
 
@@ -65,24 +66,35 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
     # Get the days until departure from the database
     db = SessionLocal()
     try:
-        seat = db.query(Seat).filter(Seat.flight_id == flight_id).first()
-        days_until_departure = seat.days_until_departure if seat else 0
+        # Get all seats for the flight
+        seats = db.query(Seat).filter(Seat.flight_id == flight_id).all()
+        if not seats:
+            print(f"No seats found for flight {flight_id}")
+            return
+        
+        days_until_departure = seats[0].days_until_departure
         
         # Start the countdown timer for this flight if it's not already running
-        countdown_service.start_timer(flight_id, days_until_departure)
+        countdown_service.start_timer(flight_id, days_until_departure * 24)  # Convert days to hours
         
-        # Register a callback to send updates to this client
-        async def send_time_update(days, hours):
-            try:
-                await websocket.send_json({
-                    "type": "TIME_UPDATE",
-                    "days_until_departure": days,
-                    "hours": hours
-                })
-            except Exception as e:
-                print(f"Error sending time update: {e}")
+        # Convert seats to dictionary format for bot service
+        seat_dicts = [{
+            'id': seat.id,
+            'row_number': seat.row_number,
+            'seat_letter': seat.seat_letter,
+            'is_occupied': seat.is_occupied,
+            'class_type': seat.class_type,
+            'is_window': seat.is_window,
+            'is_aisle': seat.is_aisle,
+            'is_middle': seat.is_middle,
+            'is_extra_legroom': seat.is_extra_legroom,
+            'base_price': seat.base_price,
+            'sale_price': seat.sale_price,
+            'days_until_departure': seat.days_until_departure
+        } for seat in seats]
         
-        countdown_service.register_callback(flight_id, send_time_update)
+        # Start bots for the flight if they're not already running
+        bot_service.start_bots(flight_id, seat_dicts)
         
         # Send initial time update with current values from the service
         if flight_id in countdown_service._hours_remaining:
@@ -144,6 +156,4 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
                         db.close()
             
     except WebSocketDisconnect:
-        # Unregister the callback when the client disconnects
-        countdown_service.unregister_callback(flight_id, send_time_update)
         manager.disconnect(websocket, flight_id) 
