@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
 from models.flight import Flight
 from models.seat import Seat
+from ws_manager import manager
 
 router = APIRouter()
 
@@ -36,4 +37,16 @@ def get_flight_seats(flight_id: int, db: Session = Depends(get_db)):
             "days_until_departure": seat.days_until_departure
         }
         for seat in seats
-    ] 
+    ]
+
+@router.websocket("/ws/flight/{flight_id}")
+async def websocket_endpoint(websocket: WebSocket, flight_id: int):
+    await manager.connect(websocket, flight_id)
+    try:
+        while True:
+            # Wait for messages from the client
+            data = await websocket.receive_json()
+            # Broadcast the message to all clients connected to this flight
+            await manager.broadcast_to_flight(flight_id, data)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, flight_id) 
