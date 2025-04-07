@@ -10,6 +10,7 @@ from backend.database import SessionLocal, engine
 from backend.models.base import Base
 from backend.models.flight import Flight
 from backend.models.seat import Seat
+from backend.models.purchase_history import PurchaseHistory
 
 def init_db():
     # Create tables
@@ -38,19 +39,20 @@ def init_db():
                 is_aisle = letter in ["C", "D"]
                 is_middle = letter in ["B", "E"]
                 
-                # Determine class type (first 2 rows are first class, next 3 are business, rest are economy)
+                # Determine class type (first 4 rows are first class, next 4 are business, rest are economy)
                 if row <= 4:
                     class_type = "first"
                     base_price = 500.0
+                    is_extra_legroom = True  # All first class seats have extra legroom
                 elif row <= 8:
                     class_type = "business"
                     base_price = 300.0
+                    is_extra_legroom = True  # All business class seats have extra legroom
                 else:
                     class_type = "economy"
                     base_price = 150.0
-                
-                # Determine if extra legroom (last row)
-                is_extra_legroom = row == 9 or row == 10
+                    # Only specific economy rows have extra legroom
+                    is_extra_legroom = row == 9 or row == 10
                 
                 seat = Seat(
                     flight_id=flight.id,

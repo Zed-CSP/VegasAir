@@ -18,12 +18,13 @@ class BotService:
             'window_preference': 0.4,  # 40% of bots prefer window seats
             'aisle_preference': 0.4,   # 40% of bots prefer aisle seats
             'class_preference': {
-                'First Class': 0.4,    # 10% prefer first class
-                'Business Class': 0.3,  # 20% prefer business class
-                'Economy Class': 0.3    # 70% prefer economy class
+                'First Class': 0.6,    # 60% prefer first class
+                'Business Class': 0.4,  # 40% prefer business class
+                'Economy Class': 0.1    # 10% prefer economy class
             },
-            'price_sensitivity': 0.5,  # 0-1 scale, higher means more sensitive to price
-            'extra_legroom_preference': 0.3  # 30% of bots prefer extra legroom
+            'price_sensitivity': 0.2,  # 0-1 scale, higher means more sensitive to price
+            'extra_legroom_preference': 0.3,  # 30% of bots prefer extra legroom
+            'adjacent_seat_chance': 0.5  # 50% chance to buy an adjacent seat
         }
     
     def start_bots(self, flight_id: int, available_seats: List[dict]):
@@ -63,12 +64,16 @@ class BotService:
             days_remaining = hours_remaining // 24
             
             # Calculate the base purchase rate (purchases per day)
-            base_rate = 1
+            base_rate = 1.5
             
             # Run until the flight departs
             while hours_remaining > 0:
-                # Calculate the current demand multiplier based on days remaining
-                demand_multiplier = self._calculate_demand_multiplier(days_remaining)
+                # Filter out seats that are already occupied by bots
+                current_available_seats = [seat for seat in available_seats 
+                                         if seat['id'] not in self._active_bots.get(flight_id, set())]
+                
+                # Calculate the current demand multiplier based on days remaining and available seats
+                demand_multiplier = self._calculate_demand_multiplier(days_remaining, current_available_seats)
                 
                 # Calculate the probability of a purchase in this hour
                 purchase_prob = (base_rate / 24) * demand_multiplier
@@ -76,7 +81,7 @@ class BotService:
                 # Randomly decide if a bot should make a purchase
                 if random.random() < purchase_prob:
                     # Select a seat based on preferences
-                    seat = self._select_seat(available_seats, flight_id)
+                    seat = self._select_seat(current_available_seats, flight_id)
                     if seat:
                         # Make the purchase
                         await self._make_purchase(flight_id, seat)
@@ -104,8 +109,8 @@ class BotService:
         except Exception as e:
             print(f"Error in bots for flight {flight_id}: {e}")
     
-    def _calculate_demand_multiplier(self, days_remaining: int) -> float:
-        """Calculate the demand multiplier based on days remaining"""
+    def _calculate_demand_multiplier(self, days_remaining: int, available_seats: List[dict] = None) -> float:
+        """Calculate the demand multiplier based on days remaining and available seats"""
         # Peak at 60 days before departure
         peak1_days = 60
         
@@ -118,22 +123,53 @@ class BotService:
         
         # Calculate multipliers for each peak
         # Use a bell curve shape (normal distribution approximation)
-        multiplier1 = 2.5 * (1 / (1 + dist_from_peak1 / 10))
-        multiplier2 = 3.0 * (1 / (1 + dist_from_peak2 / 5))
+        multiplier1 = 3 * (1 / (1 + dist_from_peak1 / 10))
+        multiplier2 = 5 * (1 / (1 + dist_from_peak2 / 5))
         
         # Combine the multipliers
         # For days between peaks, use a weighted average
         if days_remaining > peak1_days and days_remaining < (peak1_days + peak2_days) / 2:
             # Between peak1 and midpoint
             weight = (days_remaining - peak1_days) / ((peak1_days + peak2_days) / 2 - peak1_days)
-            return multiplier1 * (1 - weight) + multiplier2 * weight
+            time_multiplier = multiplier1 * (1 - weight) + multiplier2 * weight
         elif days_remaining >= (peak1_days + peak2_days) / 2 and days_remaining < peak2_days:
             # Between midpoint and peak2
             weight = (days_remaining - (peak1_days + peak2_days) / 2) / (peak2_days - (peak1_days + peak2_days) / 2)
-            return multiplier1 * weight + multiplier2 * (1 - weight)
+            time_multiplier = multiplier1 * weight + multiplier2 * (1 - weight)
         else:
             # Outside the peaks, use the higher multiplier
-            return max(multiplier1, multiplier2)
+            time_multiplier = max(multiplier1, multiplier2)
+        
+        # Add scarcity factor based on available seats if provided
+        if available_seats:
+            # Count seats by class
+            first_class_seats = sum(1 for s in available_seats if s['class_type'] == 'First Class')
+            business_class_seats = sum(1 for s in available_seats if s['class_type'] == 'Business Class')
+            economy_class_seats = sum(1 for s in available_seats if s['class_type'] == 'Economy Class')
+            
+            # Calculate scarcity multiplier (fewer seats = higher demand)
+            # We'll use a simple formula: 1 + (1 / (1 + count/10))
+            # This gives a multiplier between 1.0 and 2.0, with higher values for fewer seats
+            
+            # Default values if no seats of a class are available
+            first_scarcity = 2.0 if first_class_seats == 0 else 1 + (1 / (1 + first_class_seats/10))
+            business_scarcity = 2.0 if business_class_seats == 0 else 1 + (1 / (1 + business_class_seats/10))
+            economy_scarcity = 2.0 if economy_class_seats == 0 else 1 + (1 / (1 + economy_class_seats/10))
+            
+            # Calculate weighted average scarcity based on class preferences
+            class_prefs = self._preferences['class_preference']
+            weighted_scarcity = (
+                first_scarcity * class_prefs.get('First Class', 0.4) +
+                business_scarcity * class_prefs.get('Business Class', 0.3) +
+                economy_scarcity * class_prefs.get('Economy Class', 0.3)
+            )
+            
+            # Apply scarcity factor to time multiplier
+            # We'll use a weighted average: 70% time factor, 30% scarcity factor
+            return 0.7 * time_multiplier + 0.3 * weighted_scarcity
+        
+        # If no available seats provided, just return the time multiplier
+        return time_multiplier
     
     def _select_seat(self, available_seats: List[dict], flight_id: int) -> Optional[dict]:
         """Select a seat based on bot preferences"""
@@ -159,7 +195,7 @@ class BotService:
             
             # Class preference
             class_pref = self._preferences['class_preference'].get(seat['class_type'], 0)
-            score += class_pref * 5
+            score += class_pref * 15
             
             # Extra legroom preference
             if seat['is_extra_legroom'] and random.random() < self._preferences['extra_legroom_preference']:
@@ -200,6 +236,49 @@ class BotService:
         # Fallback
         return top_seats[0][0]
     
+    def _find_adjacent_seat(self, seat: dict, available_seats: List[dict], flight_id: int) -> Optional[dict]:
+        """Find an adjacent seat within the same side of the plane"""
+        # Get the row and seat letter of the current seat
+        row = seat['row_number']
+        seat_letter = seat['seat_letter']
+        
+        # Determine which side of the plane the seat is on
+        # Left side: A, B, C
+        # Right side: D, E, F
+        is_left_side = seat_letter in ['A', 'B', 'C']
+        
+        # Find potential adjacent seats based on the side
+        potential_adjacent_letters = []
+        if is_left_side:
+            if seat_letter == 'A':
+                potential_adjacent_letters = ['B']
+            elif seat_letter == 'B':
+                potential_adjacent_letters = ['A', 'C']
+            elif seat_letter == 'C':
+                potential_adjacent_letters = ['B']
+        else:  # Right side
+            if seat_letter == 'D':
+                potential_adjacent_letters = ['E']
+            elif seat_letter == 'E':
+                potential_adjacent_letters = ['D', 'F']
+            elif seat_letter == 'F':
+                potential_adjacent_letters = ['E']
+        
+        # Find available adjacent seats
+        adjacent_seats = []
+        for letter in potential_adjacent_letters:
+            for available_seat in available_seats:
+                if (available_seat['row_number'] == row and 
+                    available_seat['seat_letter'] == letter and
+                    available_seat['id'] not in self._active_bots.get(flight_id, set())):
+                    adjacent_seats.append(available_seat)
+        
+        # Return a random adjacent seat if any are available
+        if adjacent_seats:
+            return random.choice(adjacent_seats)
+        
+        return None
+    
     async def _make_purchase(self, flight_id: int, seat: dict):
         """Make a purchase for a seat"""
         # Mark the seat as purchased by a bot
@@ -224,9 +303,9 @@ class BotService:
         
         # Apply class-based pricing
         if seat['class_type'] == 'First Class':
-            class_multiplier = 1.3
+            class_multiplier = 3.33  # First class is 3.33x base price
         elif seat['class_type'] == 'Business Class':
-            class_multiplier = 1.2
+            class_multiplier = 2.0   # Business class is 2x base price
         else:  # Economy Class
             class_multiplier = 1.0
         
@@ -282,6 +361,41 @@ class BotService:
                     print(f"WebSocket update sent for seat {db_seat.id}")
                 except Exception as e:
                     print(f"Error broadcasting seat update: {e}")
+                
+                # 50% chance to buy an adjacent seat
+                if random.random() < self._preferences['adjacent_seat_chance']:
+                    # Get all available seats from the database
+                    available_seats = db.query(Seat).filter(
+                        Seat.flight_id == flight_id,
+                        Seat.is_occupied == False
+                    ).all()
+                    
+                    # Convert to dictionary format
+                    available_seats_dict = [
+                        {
+                            "id": s.id,
+                            "row_number": s.row_number,
+                            "seat_letter": s.seat_letter,
+                            "is_occupied": s.is_occupied,
+                            "class_type": s.class_type,
+                            "is_window": s.is_window,
+                            "is_aisle": s.is_aisle,
+                            "is_middle": s.is_middle,
+                            "is_extra_legroom": s.is_extra_legroom,
+                            "base_price": s.base_price,
+                            "sale_price": s.sale_price,
+                            "days_until_departure": s.days_until_departure
+                        }
+                        for s in available_seats
+                    ]
+                    
+                    # Find an adjacent seat
+                    adjacent_seat = self._find_adjacent_seat(seat, available_seats_dict, flight_id)
+                    
+                    if adjacent_seat:
+                        print(f"🤖 BOT ALSO PURCHASING ADJACENT SEAT: Row {adjacent_seat['row_number']}{adjacent_seat['seat_letter']}")
+                        # Recursively call _make_purchase for the adjacent seat
+                        await self._make_purchase(flight_id, adjacent_seat)
         except Exception as e:
             print(f"Error updating seat in database: {e}")
             db.rollback()
