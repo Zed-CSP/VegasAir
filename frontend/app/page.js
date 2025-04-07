@@ -14,18 +14,27 @@ export default function Home() {
   const [error, setError] = useState(null);
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [daysUntilDeparture, setDaysUntilDeparture] = useState(0);
+  const [hours, setHours] = useState(0);
   const flightId = 1; // For now, we're only working with flight 1
 
-  // Handle incoming WebSocket messages
+  // Handle WebSocket messages
   const handleWebSocketMessage = (data) => {
-    if (data.type === 'SEAT_UPDATE') {
+    console.log('WebSocket message received:', data);  // Add logging
+    
+    if (data.type === "SEAT_UPDATE") {
+      // Update the seat in the seats state
       setSeats(prevSeats => 
         prevSeats.map(seat => 
-          seat.id === data.seat.id ? { ...seat, ...data.seat } : seat
+          seat.id === data.seat.id 
+            ? { ...seat, ...data.seat } 
+            : seat
         )
       );
-    } else if (data.type === 'TIME_UPDATE') {
+    } else if (data.type === "TIME_UPDATE") {
+      console.log('Time update received:', data);  // Add logging for time updates
+      // Update the days until departure and hours
       setDaysUntilDeparture(data.days_until_departure);
+      setHours(data.hours);
     }
   };
 
@@ -93,7 +102,7 @@ export default function Home() {
     <div className="container">
       <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>VegasAir Flight 001</h1>
       
-      <CountdownTimer daysUntilDeparture={daysUntilDeparture} />
+      <CountdownTimer daysUntilDeparture={daysUntilDeparture} hours={hours} />
       
       <SelectedSeatModal 
         selectedSeat={selectedSeat}

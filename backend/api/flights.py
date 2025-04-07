@@ -8,6 +8,7 @@ from database import get_db, SessionLocal
 from models.flight import Flight
 from models.seat import Seat
 from ws_manager import manager
+from services.countdown_service import countdown_service
 
 router = APIRouter()
 
@@ -61,8 +62,40 @@ def get_flight_seats(flight_id: int, db: Session = Depends(get_db)):
 async def websocket_endpoint(websocket: WebSocket, flight_id: int):
     await manager.connect(websocket, flight_id)
     
-    # Start a background task to update the countdown timer
-    asyncio.create_task(update_countdown(flight_id, websocket))
+    # Get the days until departure from the database
+    db = SessionLocal()
+    try:
+        seat = db.query(Seat).filter(Seat.flight_id == flight_id).first()
+        days_until_departure = seat.days_until_departure if seat else 0
+        
+        # Start the countdown timer for this flight if it's not already running
+        countdown_service.start_timer(flight_id, days_until_departure)
+        
+        # Register a callback to send updates to this client
+        async def send_time_update(days, hours):
+            try:
+                await websocket.send_json({
+                    "type": "TIME_UPDATE",
+                    "days_until_departure": days,
+                    "hours": hours
+                })
+            except Exception as e:
+                print(f"Error sending time update: {e}")
+        
+        countdown_service.register_callback(flight_id, send_time_update)
+        
+        # Send initial time update with current values from the service
+        if flight_id in countdown_service._hours_remaining:
+            total_hours = countdown_service._hours_remaining[flight_id]
+            days = total_hours // 24
+            hours = total_hours % 24
+            await websocket.send_json({
+                "type": "TIME_UPDATE",
+                "days_until_departure": days,
+                "hours": hours
+            })
+    finally:
+        db.close()
     
     try:
         while True:
@@ -85,6 +118,16 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
                                 if hasattr(seat, key):
                                     setattr(seat, key, value)
                             
+                            # If the seat is being purchased, record the days until departure
+                            if seat_data.get("is_occupied") and not seat.is_occupied:
+                                # Get the current days and hours from the countdown service
+                                if flight_id in countdown_service._hours_remaining:
+                                    total_hours = countdown_service._hours_remaining[flight_id]
+                                    days_left = total_hours // 24
+                                    # Store the days left at the time of purchase
+                                    seat.days_until_departure = days_left
+                                    print(f"Seat {seat_id} purchased with {days_left} days until departure")
+                            
                             db.commit()
                             
                             # Broadcast the update to all clients
@@ -93,48 +136,14 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
                                 "seat": {
                                     "id": seat.id,
                                     "is_occupied": seat.is_occupied,
-                                    "sale_price": seat.sale_price
+                                    "sale_price": seat.sale_price,
+                                    "days_until_departure": seat.days_until_departure
                                 }
                             })
                     finally:
                         db.close()
             
     except WebSocketDisconnect:
-        manager.disconnect(websocket, flight_id)
-
-async def update_countdown(flight_id: int, websocket: WebSocket):
-    """Background task to update the countdown timer"""
-    db = SessionLocal()
-    try:
-        # Get the first seat to get the days_until_departure
-        seat = db.query(Seat).filter(Seat.flight_id == flight_id).first()
-        if not seat:
-            return
-        
-        days_until_departure = seat.days_until_departure
-        
-        # Send initial countdown
-        await websocket.send_json({
-            "type": "TIME_UPDATE",
-            "days_until_departure": days_until_departure
-        })
-        
-        # Update the countdown every hour
-        while True:
-            await asyncio.sleep(3600)  # Sleep for 1 hour
-            
-            # Update days_until_departure in the database
-            seat.days_until_departure = max(0, seat.days_until_departure - 1)
-            db.commit()
-            
-            # Broadcast the update to all clients
-            await manager.broadcast_to_flight(flight_id, {
-                "type": "TIME_UPDATE",
-                "days_until_departure": seat.days_until_departure
-            })
-            
-            # If we've reached 0 days, stop updating
-            if seat.days_until_departure <= 0:
-                break
-    finally:
-        db.close() 
+        # Unregister the callback when the client disconnects
+        countdown_service.unregister_callback(flight_id, send_time_update)
+        manager.disconnect(websocket, flight_id) 

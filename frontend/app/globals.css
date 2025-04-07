@@ -198,32 +198,12 @@ button:disabled {
 }
 
 .seat.occupied {
-  background: linear-gradient(135deg, var(--occupied), #d1d1d1);
+  background: linear-gradient(135deg, var(--occupied), #79797984);
   cursor: not-allowed;
   opacity: 0.8;
-  border-color: #000000;
+  color: black;
+  border-color: black;
   border-width: 2px;
-}
-
-/* Make seat number text black for occupied first and business class seats */
-.seat.first.occupied div,
-.seat.business.occupied div {
-  color: #000000 !important;
-}
-
-.seat.occupied:hover {
-  background: linear-gradient(135deg, #a0a0a0, #808080) !important;
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-/* Override class-specific hover states for occupied seats */
-.seat.first.occupied:hover,
-.seat.business.occupied:hover,
-.seat.economy.occupied:hover {
-  background: linear-gradient(135deg, #a0a0a0, #808080) !important;
-  transform: none !important;
-  box-shadow: none !important;
 }
 
 .seat.selected {
@@ -381,6 +361,10 @@ button:disabled {
   background: linear-gradient(135deg, var(--economy), var(--economy-gradient));
 }
 
+.seat.occupied:hover {
+  background: linear-gradient(135deg, var(--occupied), #79797984);
+}
+
 .selected-seat-card .button-group {
   display: flex;
   gap: 12px;
@@ -408,17 +392,24 @@ button:disabled {
   box-shadow: none;
 }
 
-/* Countdown Timer Styles */
+.seat-purchase-time {
+  font-size: 0.7rem;
+  color: #666;
+  margin-top: 2px;
+  text-align: center;
+}
+
 .countdown-timer {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
-  margin: 1rem 0;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  gap: 20px;
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
@@ -428,7 +419,12 @@ button:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   min-width: 80px;
+  padding: 10px;
+  background-color: var(--background);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .countdown-value {
@@ -440,6 +436,5 @@ button:disabled {
 .countdown-label {
   font-size: 0.8rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  margin-top: 5px;
 }
