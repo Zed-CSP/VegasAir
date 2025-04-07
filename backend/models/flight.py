@@ -1,6 +1,6 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from .base import BaseModel
+from models.base import BaseModel
 
 class Flight(BaseModel):
     """Flight model representing airline flights"""

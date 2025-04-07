@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
-from .base import BaseModel
+from models.base import BaseModel
 import sqlalchemy
 
 class Seat(BaseModel):
