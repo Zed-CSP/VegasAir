@@ -1,0 +1,386 @@
+:root {
+  --primary-color: #0066cc;
+  --primary-dark: #004d99;
+  --secondary-color: #4a90e2;
+  --success-color: #2ecc71;
+  --danger-color: #e74c3c;
+  --warning-color: #f1c40f;
+  --info-color: #3498db;
+  --light-color: #f8fafc;
+  --dark-color: #2c3e50;
+  --background: #ffffff;
+  --foreground: #2c3e50;
+  --card-bg: #ffffff;
+  --border-color: #d1e1f5;
+  --first-class: #8b5cf6;
+  --first-class-gradient: #a78bfa;
+  --business: #0284c7;
+  --business-gradient: #38bdf8;
+  --economy: #ffffff;
+  --economy-gradient: #f8fafc;
+  --occupied: #e0e0e0;
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --selected: #2ecc71;
+  --hover: #f5f9ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #ffffff;
+    --foreground: #2c3e50;
+    --card-bg: #ffffff;
+    --border-color: #d1e1f5;
+    --text-primary: #2c3e50;
+    --text-secondary: #7f8c8d;
+    --occupied: #e0e0e0;
+    --hover: #f5f9ff;
+  }
+}
+
+html {
+  min-height: 100vh;
+  background: linear-gradient(135deg, 
+    #b1d4ff 0%, 
+    #d4e9ff 25%,
+    #ffffff 50%,
+    #d4e9ff 75%,
+    #b1d4ff 100%
+  ) fixed;
+}
+
+body {
+  color: var(--text-primary);
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 400px;
+  background: linear-gradient(180deg, 
+    rgba(0, 102, 204, 0.15) 0%,
+    rgba(74, 144, 226, 0.12) 40%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 300px;
+  background: linear-gradient(0deg, 
+    rgba(0, 102, 204, 0.12) 0%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: light;
+  }
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+button {
+  cursor: pointer;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+button:disabled {
+  background: linear-gradient(135deg, var(--secondary-color), #a0a0a0);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.seat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(60px, 1fr)) 40px repeat(3, minmax(60px, 1fr));
+  gap: 8px;
+  width: 600px;
+  margin: 0 auto;
+  padding: 25px;
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  border: 2px solid var(--border-color);
+  position: relative;
+}
+
+.aisle {
+  background: transparent;
+  pointer-events: none;
+  border: none;
+  box-shadow: none;
+}
+
+.seat {
+  padding: 8px 6px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  position: relative;
+  transition: all 0.3s ease;
+  background-color: var(--card-bg);
+  cursor: pointer;
+  min-height: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.seat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.seat.first {
+  background: linear-gradient(135deg, var(--first-class), var(--first-class-gradient));
+  color: white;
+  border-color: var(--first-class);
+}
+
+.seat.business {
+  background: linear-gradient(135deg, var(--business), var(--business-gradient));
+  color: white;
+  border-color: var(--business);
+}
+
+.seat.economy {
+  background: linear-gradient(135deg, var(--economy), var(--economy-gradient));
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.seat.occupied {
+  background: linear-gradient(135deg, var(--occupied), #d1d1d1);
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.seat.selected {
+  background: linear-gradient(135deg, var(--selected), #27ae60);
+  color: white;
+  border-color: #27ae60;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+}
+
+.seat-price {
+  font-size: 0.75em;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.seat-features {
+  position: absolute;
+  font-size: 0.65em;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 1px 4px;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.seat-features.window {
+  top: 5px;
+  right: 5px;
+}
+
+.seat-features.legroom {
+  bottom: 5px;
+  right: 5px;
+}
+
+.legend {
+  width: 600px;
+  margin: 30px auto;
+  text-align: center;
+  display: flex;
+  justify-content: space-around;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 20px;
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  transition: all 0.2s;
+  flex: 1;
+  justify-content: center;
+  min-width: 150px;
+}
+
+.legend-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.legend-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 2px solid var(--border-color);
+}
+
+.legend-color.first {
+  background: linear-gradient(135deg, var(--first-class), var(--first-class-gradient));
+  border-color: var(--first-class);
+}
+
+.legend-color.business {
+  background: linear-gradient(135deg, var(--business), var(--business-gradient));
+  border-color: var(--business);
+}
+
+.legend-color.economy {
+  background: linear-gradient(135deg, var(--economy), var(--economy-gradient));
+  border-color: var(--border-color);
+}
+
+.selected-seat-card {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 25px;
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 2px solid var(--border-color);
+  z-index: 1000;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.selected-seat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 18px;
+  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  border-radius: 16px 16px 0 0;
+}
+
+.selected-seat-card h2 {
+  margin-bottom: 15px;
+  color: var(--text-primary);
+}
+
+.selected-seat-card p {
+  margin: 8px 0;
+  color: var(--text-secondary);
+}
+
+.selected-seat-card button {
+  margin-top: 15px;
+}
+
+.seat.first:hover {
+  background: linear-gradient(135deg, var(--first-class), var(--first-class-gradient));
+}
+
+.seat.business:hover {
+  background: linear-gradient(135deg, var(--business), var(--business-gradient));
+}
+
+.seat.economy:hover {
+  background: linear-gradient(135deg, var(--economy), var(--economy-gradient));
+}
+
+.selected-seat-card .button-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.selected-seat-card .purchase-button {
+  background: linear-gradient(135deg, var(--success-color), #27ae60);
+  padding: 12px 32px;
+}
+
+.selected-seat-card .purchase-button:hover {
+  box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+}
+
+.selected-seat-card .cancel-button {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.selected-seat-card .cancel-button:hover {
+  background: var(--hover);
+  box-shadow: none;
+}
