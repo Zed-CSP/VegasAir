@@ -1,4 +1,4 @@
-const SelectedSeatModal = ({ selectedSeat, onCancel }) => {
+const SelectedSeatModal = ({ selectedSeat, onCancel, onPurchase }) => {
   if (!selectedSeat) return null;
 
   return (
@@ -9,7 +9,7 @@ const SelectedSeatModal = ({ selectedSeat, onCancel }) => {
       <div className="button-group">
         <button 
           className="purchase-button" 
-          onClick={() => alert('Purchase functionality coming soon!')}
+          onClick={onPurchase}
         >
           Purchase
         </button>

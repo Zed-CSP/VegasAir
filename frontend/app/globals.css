@@ -201,6 +201,29 @@ button:disabled {
   background: linear-gradient(135deg, var(--occupied), #d1d1d1);
   cursor: not-allowed;
   opacity: 0.8;
+  border-color: #000000;
+  border-width: 2px;
+}
+
+/* Make seat number text black for occupied first and business class seats */
+.seat.first.occupied div,
+.seat.business.occupied div {
+  color: #000000 !important;
+}
+
+.seat.occupied:hover {
+  background: linear-gradient(135deg, #a0a0a0, #808080) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Override class-specific hover states for occupied seats */
+.seat.first.occupied:hover,
+.seat.business.occupied:hover,
+.seat.economy.occupied:hover {
+  background: linear-gradient(135deg, #a0a0a0, #808080) !important;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .seat.selected {

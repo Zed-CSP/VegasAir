@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy.orm import Session
 from typing import List
 
-from database import get_db
+from database import get_db, SessionLocal
 from models.flight import Flight
 from models.seat import Seat
 from ws_manager import manager
@@ -46,7 +46,36 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
         while True:
             # Wait for messages from the client
             data = await websocket.receive_json()
-            # Broadcast the message to all clients connected to this flight
-            await manager.broadcast_to_flight(flight_id, data)
+            
+            # Handle seat updates
+            if data.get("type") == "SEAT_UPDATE":
+                seat_data = data.get("seat", {})
+                seat_id = seat_data.get("id")
+                
+                if seat_id:
+                    # Update the seat in the database
+                    db = SessionLocal()
+                    try:
+                        seat = db.query(Seat).filter(Seat.id == seat_id).first()
+                        if seat:
+                            # Update seat properties
+                            for key, value in seat_data.items():
+                                if hasattr(seat, key):
+                                    setattr(seat, key, value)
+                            
+                            db.commit()
+                            
+                            # Broadcast the update to all clients
+                            await manager.broadcast_to_flight(flight_id, {
+                                "type": "SEAT_UPDATE",
+                                "seat": {
+                                    "id": seat.id,
+                                    "is_occupied": seat.is_occupied,
+                                    "sale_price": seat.sale_price
+                                }
+                            })
+                    finally:
+                        db.close()
+            
     except WebSocketDisconnect:
         manager.disconnect(websocket, flight_id) 

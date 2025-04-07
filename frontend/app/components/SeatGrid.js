@@ -23,7 +23,9 @@ export default function SeatGrid({ seats, selectedSeat, onSeatClick }) {
             onClick={() => onSeatClick(seat)}
           >
             <div style={{ fontWeight: 'bold' }}>{seat.row_number}{seat.seat_letter}</div>
-            <div className="seat-price">${seat.base_price}</div>
+            <div className="seat-price">
+              ${seat.is_occupied && seat.sale_price ? seat.sale_price : seat.base_price}
+            </div>
           </div>
         );
 
