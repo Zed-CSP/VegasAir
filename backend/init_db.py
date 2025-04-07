@@ -10,21 +10,15 @@ from backend.database import SessionLocal, engine
 from backend.models.base import Base
 from backend.models.flight import Flight
 from backend.models.seat import Seat
-from backend.services.bot_service import bot_service
 
 def init_db():
     # Create tables
+    Base.metadata.drop_all(bind=engine)  # Drop all tables first
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
     
     try:
-        # Check if we already have data
-        existing_flight = db.query(Flight).first()
-        if existing_flight:
-            print("Database already initialized. Skipping.")
-            return
-        
         # Create a sample flight
         flight = Flight(
             flight_number="001"
@@ -78,26 +72,6 @@ def init_db():
         db.commit()
         
         print(f"Database initialized with flight {flight.flight_number} and {len(seats)} seats.")
-        
-        # Convert seats to dictionary format for bot service
-        seat_dicts = [{
-            'id': seat.id,
-            'row_number': seat.row_number,
-            'seat_letter': seat.seat_letter,
-            'is_occupied': seat.is_occupied,
-            'class_type': seat.class_type,
-            'is_window': seat.is_window,
-            'is_aisle': seat.is_aisle,
-            'is_middle': seat.is_middle,
-            'is_extra_legroom': seat.is_extra_legroom,
-            'base_price': seat.base_price,
-            'sale_price': seat.sale_price,
-            'days_until_departure': seat.days_until_departure
-        } for seat in seats]
-        
-        # Start bots for the flight
-        bot_service.start_bots(flight.id, seat_dicts)
-        print(f"Bots started automatically for flight {flight.id}")
         
     except Exception as e:
         print(f"Error initializing database: {e}")

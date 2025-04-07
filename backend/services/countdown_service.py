@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Optional
-from ws_manager import manager
+from backend.ws_manager import manager
 
 class CountdownService:
     """Service to manage countdown timers for flights"""
@@ -53,12 +53,12 @@ class CountdownService:
                 except Exception as e:
                     print(f"Error sending time update: {e}")
                 
-                # Wait for a second (2 hours in our simulation)
-                await asyncio.sleep(1)
+                # Wait for 0.5 seconds (4 hours in our simulation)
+                await asyncio.sleep(0.25)
                 
-                # Update hours remaining (decrement by 2 hours)
+                # Update hours remaining (decrement by 4 hours)
                 if flight_id in self._hours_remaining:
-                    self._hours_remaining[flight_id] -= 2
+                    self._hours_remaining[flight_id] -= 4
                 
                 # If we've reached zero, stop
                 if self._hours_remaining.get(flight_id, 0) <= 0:

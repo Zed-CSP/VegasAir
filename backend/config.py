@@ -15,6 +15,8 @@ class Settings:
     BACKEND_CORS_ORIGINS: list = [
         "http://localhost:3000",  # Next.js frontend
         "http://localhost:8000",  # Backend
+        "ws://localhost:3000",    # WebSocket from frontend
+        "ws://localhost:8000",    # WebSocket from backend
     ]
 
 settings = Settings() 

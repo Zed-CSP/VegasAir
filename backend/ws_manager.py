@@ -10,7 +10,7 @@ class ConnectionManager:
         self.flight_connections: Dict[int, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, flight_id: int = None):
-        await websocket.accept()
+        """Add a WebSocket connection to the manager"""
         self.active_connections.append(websocket)
         if flight_id:
             if flight_id not in self.flight_connections:
@@ -19,6 +19,7 @@ class ConnectionManager:
             print(f"New connection added for flight {flight_id}. Total connections: {len(self.flight_connections[flight_id])}")
 
     def disconnect(self, websocket: WebSocket, flight_id: int = None):
+        """Remove a WebSocket connection from the manager"""
         try:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)

@@ -4,12 +4,11 @@ from typing import List
 import asyncio
 from datetime import datetime, timedelta
 
-from database import get_db, SessionLocal
-from models.flight import Flight
-from models.seat import Seat
-from ws_manager import manager
-from services.countdown_service import countdown_service
-from services.bot_service import bot_service
+from backend.database import get_db, SessionLocal
+from backend.models.flight import Flight
+from backend.models.seat import Seat
+from backend.ws_manager import manager
+from backend.services.countdown_service import countdown_service
 
 router = APIRouter()
 
@@ -61,99 +60,104 @@ def get_flight_seats(flight_id: int, db: Session = Depends(get_db)):
 
 @router.websocket("/ws/flight/{flight_id}")
 async def websocket_endpoint(websocket: WebSocket, flight_id: int):
-    await manager.connect(websocket, flight_id)
-    
-    # Get the days until departure from the database
-    db = SessionLocal()
     try:
-        # Get all seats for the flight
-        seats = db.query(Seat).filter(Seat.flight_id == flight_id).all()
-        if not seats:
-            print(f"No seats found for flight {flight_id}")
-            return
+        # Accept the connection first
+        await websocket.accept()
+        print(f"WebSocket connection accepted for flight {flight_id}")
         
-        days_until_departure = seats[0].days_until_departure
+        # Then connect to the manager
+        await manager.connect(websocket, flight_id)
+        print(f"WebSocket connection established for flight {flight_id}")
         
-        # Start the countdown timer for this flight if it's not already running
-        countdown_service.start_timer(flight_id, days_until_departure * 24)  # Convert days to hours
+        # Get the days until departure from the database
+        db = SessionLocal()
+        try:
+            # Get all seats for the flight
+            seats = db.query(Seat).filter(Seat.flight_id == flight_id).all()
+            if not seats:
+                print(f"No seats found for flight {flight_id}")
+                await websocket.close()
+                return
+            
+            days_until_departure = seats[0].days_until_departure
+            
+            # Send initial time update with current values from the service
+            if flight_id in countdown_service._hours_remaining:
+                total_hours = countdown_service._hours_remaining[flight_id]
+                days = total_hours // 24
+                hours = total_hours % 24
+                await websocket.send_json({
+                    "type": "TIME_UPDATE",
+                    "days_until_departure": days,
+                    "hours": hours
+                })
+        finally:
+            db.close()
         
-        # Convert seats to dictionary format for bot service
-        seat_dicts = [{
-            'id': seat.id,
-            'row_number': seat.row_number,
-            'seat_letter': seat.seat_letter,
-            'is_occupied': seat.is_occupied,
-            'class_type': seat.class_type,
-            'is_window': seat.is_window,
-            'is_aisle': seat.is_aisle,
-            'is_middle': seat.is_middle,
-            'is_extra_legroom': seat.is_extra_legroom,
-            'base_price': seat.base_price,
-            'sale_price': seat.sale_price,
-            'days_until_departure': seat.days_until_departure
-        } for seat in seats]
-        
-        # Start bots for the flight if they're not already running
-        bot_service.start_bots(flight_id, seat_dicts)
-        
-        # Send initial time update with current values from the service
-        if flight_id in countdown_service._hours_remaining:
-            total_hours = countdown_service._hours_remaining[flight_id]
-            days = total_hours // 24
-            hours = total_hours % 24
-            await websocket.send_json({
-                "type": "TIME_UPDATE",
-                "days_until_departure": days,
-                "hours": hours
-            })
-    finally:
-        db.close()
-    
-    try:
+        # Keep the connection alive and handle messages
         while True:
-            # Wait for messages from the client
-            data = await websocket.receive_json()
-            
-            # Handle seat updates
-            if data.get("type") == "SEAT_UPDATE":
-                seat_data = data.get("seat", {})
-                seat_id = seat_data.get("id")
+            try:
+                # Wait for messages from the client
+                data = await websocket.receive_json()
                 
-                if seat_id:
-                    # Update the seat in the database
-                    db = SessionLocal()
-                    try:
-                        seat = db.query(Seat).filter(Seat.id == seat_id).first()
-                        if seat:
-                            # Update seat properties
-                            for key, value in seat_data.items():
-                                if hasattr(seat, key):
-                                    setattr(seat, key, value)
-                            
-                            # If the seat is being purchased, record the days until departure
-                            if seat_data.get("is_occupied") and not seat.is_occupied:
-                                # Get the current days and hours from the countdown service
-                                if flight_id in countdown_service._hours_remaining:
-                                    total_hours = countdown_service._hours_remaining[flight_id]
-                                    days_left = total_hours // 24
-                                    # Store the days left at the time of purchase
-                                    seat.days_until_departure = days_left
-                                    print(f"Seat {seat_id} purchased with {days_left} days until departure")
-                            
-                            db.commit()
-                            
-                            # Broadcast the update to all clients
-                            await manager.broadcast_to_flight(flight_id, {
-                                "type": "SEAT_UPDATE",
-                                "seat": {
-                                    "id": seat.id,
-                                    "is_occupied": seat.is_occupied,
-                                    "sale_price": seat.sale_price,
-                                    "days_until_departure": seat.days_until_departure
-                                }
-                            })
-                    finally:
-                        db.close()
-            
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, flight_id) 
+                # Handle seat updates
+                if data.get("type") == "SEAT_UPDATE":
+                    seat_data = data.get("seat", {})
+                    seat_id = seat_data.get("id")
+                    
+                    if seat_id:
+                        # Update the seat in the database
+                        db = SessionLocal()
+                        try:
+                            seat = db.query(Seat).filter(Seat.id == seat_id).first()
+                            if seat:
+                                # Update seat properties
+                                for key, value in seat_data.items():
+                                    if hasattr(seat, key):
+                                        setattr(seat, key, value)
+                                
+                                # If the seat is being purchased, record the days until departure
+                                if seat_data.get("is_occupied") and not seat.is_occupied:
+                                    # Get the current days and hours from the countdown service
+                                    if flight_id in countdown_service._hours_remaining:
+                                        total_hours = countdown_service._hours_remaining[flight_id]
+                                        days_left = total_hours // 24
+                                        # Store the days left at the time of purchase
+                                        seat.days_until_departure = days_left
+                                        print(f"Seat {seat_id} purchased with {days_left} days until departure")
+                                
+                                db.commit()
+                                
+                                # Broadcast the update to all clients
+                                await manager.broadcast_to_flight(flight_id, {
+                                    "type": "SEAT_UPDATE",
+                                    "seat": {
+                                        "id": seat.id,
+                                        "row_number": seat.row_number,
+                                        "seat_letter": seat.seat_letter,
+                                        "is_occupied": seat.is_occupied,
+                                        "class_type": seat.class_type,
+                                        "is_window": seat.is_window,
+                                        "is_aisle": seat.is_aisle,
+                                        "is_middle": seat.is_middle,
+                                        "is_extra_legroom": seat.is_extra_legroom,
+                                        "base_price": seat.base_price,
+                                        "sale_price": seat.sale_price,
+                                        "days_until_departure": seat.days_until_departure
+                                    }
+                                })
+                        finally:
+                            db.close()
+            except WebSocketDisconnect:
+                print(f"WebSocket disconnected for flight {flight_id}")
+                manager.disconnect(websocket, flight_id)
+                break
+            except Exception as e:
+                print(f"Error in WebSocket connection for flight {flight_id}: {e}")
+                # Don't break the loop for other errors, just log them
+    except Exception as e:
+        print(f"Error establishing WebSocket connection for flight {flight_id}: {e}")
+        try:
+            await websocket.close()
+        except:
+            pass 

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
-from models.base import BaseModel
+from backend.models.base import BaseModel
 import sqlalchemy
 
 class Seat(BaseModel):
@@ -27,4 +27,4 @@ class Seat(BaseModel):
     # Composite unique constraint for flight_id + row_number + seat_letter + is_occupied
     __table_args__ = (
         sqlalchemy.UniqueConstraint('flight_id', 'row_number', 'seat_letter', 'is_occupied', name='unique_seat_per_flight'),
-    ) 
+    )

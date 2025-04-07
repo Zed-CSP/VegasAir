@@ -3,10 +3,10 @@ import random
 from typing import Dict, List, Set, Optional
 from datetime import datetime, timedelta
 
-from services.countdown_service import countdown_service
-from database import SessionLocal
-from models.seat import Seat
-from ws_manager import manager
+from backend.database import SessionLocal
+from backend.models.seat import Seat
+from backend.ws_manager import manager
+from backend.services.countdown_service import countdown_service
 
 class BotService:
     """Service to manage bots that simulate seat purchases"""
@@ -15,12 +15,12 @@ class BotService:
         self._bot_tasks: Dict[int, asyncio.Task] = {}
         self._active_bots: Dict[int, Set[int]] = {}  # flight_id -> set of seat_ids
         self._preferences = {
-            'window_preference': 0.7,  # 70% of bots prefer window seats
-            'aisle_preference': 0.2,   # 20% of bots prefer aisle seats
+            'window_preference': 0.4,  # 40% of bots prefer window seats
+            'aisle_preference': 0.4,   # 40% of bots prefer aisle seats
             'class_preference': {
-                'First Class': 0.1,    # 10% prefer first class
-                'Business Class': 0.2,  # 20% prefer business class
-                'Economy Class': 0.7    # 70% prefer economy class
+                'First Class': 0.4,    # 10% prefer first class
+                'Business Class': 0.3,  # 20% prefer business class
+                'Economy Class': 0.3    # 70% prefer economy class
             },
             'price_sensitivity': 0.5,  # 0-1 scale, higher means more sensitive to price
             'extra_legroom_preference': 0.3  # 30% of bots prefer extra legroom
@@ -63,7 +63,7 @@ class BotService:
             days_remaining = hours_remaining // 24
             
             # Calculate the base purchase rate (purchases per day)
-            base_rate = 0.5  # Average 0.5 purchases per day
+            base_rate = 1
             
             # Run until the flight departs
             while hours_remaining > 0:
@@ -81,8 +81,8 @@ class BotService:
                         # Make the purchase
                         await self._make_purchase(flight_id, seat)
                 
-                # Wait for the next hour (1 second in our simulation)
-                await asyncio.sleep(1)
+                # Wait for the next hour (0.5 seconds in our simulation)
+                await asyncio.sleep(0.25)
                 
                 # Update hours remaining
                 hours_remaining = countdown_service._hours_remaining.get(flight_id, 0)
@@ -261,15 +261,25 @@ class BotService:
                 
                 # Broadcast the update to all clients
                 try:
+                    # Send a complete seat update that matches what the frontend expects
                     await manager.broadcast_to_flight(flight_id, {
                         "type": "SEAT_UPDATE",
                         "seat": {
                             "id": db_seat.id,
+                            "row_number": db_seat.row_number,
+                            "seat_letter": db_seat.seat_letter,
                             "is_occupied": db_seat.is_occupied,
+                            "class_type": db_seat.class_type,
+                            "is_window": db_seat.is_window,
+                            "is_aisle": db_seat.is_aisle,
+                            "is_middle": db_seat.is_middle,
+                            "is_extra_legroom": db_seat.is_extra_legroom,
+                            "base_price": db_seat.base_price,
                             "sale_price": db_seat.sale_price,
                             "days_until_departure": db_seat.days_until_departure
                         }
                     })
+                    print(f"WebSocket update sent for seat {db_seat.id}")
                 except Exception as e:
                     print(f"Error broadcasting seat update: {e}")
         except Exception as e:

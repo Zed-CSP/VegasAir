@@ -40,23 +40,27 @@ export default function Home() {
 
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((data) => {
+    console.log('WebSocket message received:', data);
+    
     if (data.type === "SEAT_UPDATE") {
-      // Add the update to pending updates
-      pendingSeatUpdates.current.set(data.seat.id, data.seat);
-      
-      // Clear any existing timeout
-      if (updateTimeout.current) {
-        clearTimeout(updateTimeout.current);
-      }
-      
-      // Set a new timeout to apply updates
-      updateTimeout.current = setTimeout(applySeatUpdates, 100); // 100ms debounce
+      // Update seats immediately when a seat update is received
+      setSeats(prevSeats => {
+        return prevSeats.map(seat => {
+          if (seat.id === data.seat.id) {
+            // Log the update for debugging
+            console.log(`Updating seat ${seat.id} (${seat.row_number}${seat.seat_letter}) to occupied: ${data.seat.is_occupied}`);
+            // Return the updated seat with all properties from the WebSocket message
+            return { ...seat, ...data.seat };
+          }
+          return seat;
+        });
+      });
     } else if (data.type === "TIME_UPDATE") {
       // Update time immediately as it's less frequent
       setDaysUntilDeparture(data.days_until_departure);
       setHours(data.hours);
     }
-  }, [applySeatUpdates]);
+  }, []);
 
   // Initialize WebSocket connection
   const { sendMessage } = useWebSocket(flightId, handleWebSocketMessage);
