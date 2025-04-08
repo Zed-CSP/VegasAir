@@ -1,3 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.vegas-text {
+  animation: gradient 3s ease infinite;
+}
+
 :root {
   --primary-color: #0066cc;
   --primary-dark: #004d99;
@@ -445,7 +463,7 @@ button:disabled {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.7);
   z-index: 999;
   display: flex;
   justify-content: center;
@@ -459,9 +477,35 @@ button:disabled {
 
 @keyframes float {
   from {
-    transform: translateY(-50%) translateX(0);
+    transform: translate(-50%, -50%) rotate(45deg);
   }
   to {
-    transform: translateY(-50%) translateX(0) translateY(-10px);
+    transform: translate(-50%, -50%) rotate(45deg) translateY(-10px);
   }
+}
+
+.demand-forecast {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  margin: 20px auto;
+  max-width: 1000px;
+}
+
+.forecast-controls select {
+  background-color: var(--background);
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+.forecast-controls select:hover {
+  border-color: var(--primary-color);
+}
+
+.forecast-controls select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
 }

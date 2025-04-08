@@ -57,7 +57,7 @@ class CountdownService:
                     print(f"Error sending time update: {e}")
                 
                 # Wait for 0.5 seconds (4 hours in our simulation)
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(0.01)
                 
                 # Update hours remaining (decrement by 4 hours)
                 current_hours = flight_state_manager.get_hours_remaining(flight_id)

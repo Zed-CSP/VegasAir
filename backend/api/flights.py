@@ -1,16 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
 import asyncio
 from datetime import datetime, timedelta
+import json
 
 from backend.db.database import get_db, SessionLocal
 from backend.models.flight import Flight
 from backend.models.seat import Seat
+from backend.models.purchase_history import PurchaseHistory
 from backend.websocket.ws_manager import manager
 from backend.utils.constants import flight_state_manager
 from backend.services.countdown_service import countdown_service
 from backend.services.bot_service import bot_service
+from backend.services.demand_forecasting import demand_forecaster
 
 router = APIRouter()
 
@@ -18,6 +21,35 @@ router = APIRouter()
 def get_flights(db: Session = Depends(get_db)):
     flights = db.query(Flight).all()
     return [{"id": flight.id, "flight_number": flight.flight_number} for flight in flights]
+
+@router.get("/flights/active", response_model=dict)
+def get_active_flight(db: Session = Depends(get_db)):
+    """Get the currently active flight"""
+    # Get all flights
+    flights = db.query(Flight).all()
+    if not flights:
+        raise HTTPException(status_code=404, detail="No flights found")
+    
+    # Find the active flight by checking flight_state_manager
+    active_flight = None
+    for flight in flights:
+        if flight_state_manager.is_flight_active(flight.id):
+            active_flight = flight
+            break
+    
+    # If no active flight found, return the most recent flight
+    if not active_flight:
+        active_flight = flights[-1]
+    
+    # Get the first seat to get the days_until_departure
+    seat = db.query(Seat).filter(Seat.flight_id == active_flight.id).first()
+    days_until_departure = seat.days_until_departure if seat else 0
+    
+    return {
+        "id": active_flight.id,
+        "flight_number": active_flight.flight_number,
+        "days_until_departure": days_until_departure
+    }
 
 @router.get("/flights/{flight_id}", response_model=dict)
 def get_flight(flight_id: int, db: Session = Depends(get_db)):
@@ -206,4 +238,56 @@ def start_flight(flight_id: int, db: Session = Depends(get_db)):
         "message": f"Started timer and bots for flight {flight.flight_number}",
         "flight_id": flight_id,
         "days_until_departure": days_until_departure
-    } 
+    }
+
+@router.get("/purchase-history", response_model=List[Dict])
+def get_purchase_history(db: Session = Depends(get_db)):
+    """
+    Retrieve purchase history data for all flights.
+    Returns a list of purchase history records with daily purchase data.
+    """
+    try:
+        # Query all purchase history records
+        records = db.query(PurchaseHistory).all()
+        
+        # Convert records to list of dictionaries
+        history_data = []
+        for record in records:
+            history_data.append({
+                "flight_number": record.flight_number,
+                "class_type": record.class_type,
+                "daily_purchases": record.daily_purchases
+            })
+        
+        return history_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demand-forecast", response_model=Dict)
+def get_demand_forecast(db: Session = Depends(get_db)):
+    """
+    Generate demand forecasts using multiple models (ARIMA, Prophet, LSTM).
+    Returns forecasts for each seat class and model type.
+    """
+    try:
+        # Get purchase history data
+        records = db.query(PurchaseHistory).all()
+        
+        # Convert records to list of dictionaries
+        history_data = []
+        for record in records:
+            history_data.append({
+                "flight_number": record.flight_number,
+                "class_type": record.class_type,
+                "daily_purchases": record.daily_purchases
+            })
+        
+        # Generate forecasts
+        forecasts = demand_forecaster.generate_forecasts(history_data)
+        
+        return {
+            "status": "success",
+            "forecasts": forecasts
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 

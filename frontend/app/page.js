@@ -8,6 +8,7 @@ import SelectedSeatModal from './components/SelectedSeatModal';
 import CountdownTimer from './components/CountdownTimer';
 import useWebSocket from './hooks/useWebSocket';
 import FlightDepartureAnimation from './components/FlightDepartureAnimation';
+import DemandForecast from './components/DemandForecast';
 
 export default function Home() {
   const [seats, setSeats] = useState([]);
@@ -17,12 +18,33 @@ export default function Home() {
   const [daysUntilDeparture, setDaysUntilDeparture] = useState(0);
   const [hours, setHours] = useState(0);
   const [showDepartureAnimation, setShowDepartureAnimation] = useState(false);
-  const [currentFlightId, setCurrentFlightId] = useState(1); // Start with flight 1
-  const [currentFlightNumber, setCurrentFlightNumber] = useState("001");
+  const [currentFlightId, setCurrentFlightId] = useState(null); // Initialize as null
+  const [currentFlightNumber, setCurrentFlightNumber] = useState("");
   
   // Use refs to store pending updates
   const pendingSeatUpdates = useRef(new Map());
   const updateTimeout = useRef(null);
+
+  // Function to fetch the current active flight
+  const fetchCurrentFlight = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/v1/flights/active');
+      const activeFlight = response.data;
+      if (activeFlight) {
+        setCurrentFlightId(activeFlight.id);
+        setCurrentFlightNumber(activeFlight.flight_number);
+        setDaysUntilDeparture(activeFlight.days_until_departure);
+      }
+    } catch (err) {
+      console.error('Error fetching current flight:', err);
+      setError(err.message);
+    }
+  };
+
+  // Fetch current flight on mount
+  useEffect(() => {
+    fetchCurrentFlight();
+  }, []);
 
   // Debounced function to apply seat updates
   const applySeatUpdates = useCallback(() => {
@@ -96,8 +118,11 @@ export default function Home() {
   // Initialize WebSocket connection with the current flight ID
   const { sendMessage } = useWebSocket(currentFlightId, handleWebSocketMessage);
 
+  // Modify the existing useEffect to only fetch flight data when we have a currentFlightId
   useEffect(() => {
-    fetchFlightData();
+    if (currentFlightId) {
+      fetchFlightData();
+    }
     
     // Cleanup function
     return () => {
@@ -116,7 +141,6 @@ export default function Home() {
       // Fetch flight details including days until departure
       const flightResponse = await axios.get(`http://localhost:8000/api/v1/flights/${currentFlightId}`);
       setDaysUntilDeparture(flightResponse.data.days_until_departure);
-      setCurrentFlightNumber(flightResponse.data.flight_number);
       
       setLoading(false);
     } catch (err) {
@@ -163,11 +187,11 @@ export default function Home() {
 
   return (
     <div className="container">
-      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>
-        VegasAir Flight {currentFlightNumber}
-      </h1>
-      
-      <CountdownTimer daysUntilDeparture={daysUntilDeparture} hours={hours} />
+      <CountdownTimer 
+        daysUntilDeparture={daysUntilDeparture} 
+        hours={hours} 
+        flightNumber={currentFlightNumber}
+      />
       
       <SelectedSeatModal 
         selectedSeat={selectedSeat}
@@ -183,8 +207,13 @@ export default function Home() {
         onSeatClick={handleSeatClick}
       />
 
+      <DemandForecast />
+
       {showDepartureAnimation && (
-        <FlightDepartureAnimation onComplete={handleAnimationComplete} />
+        <FlightDepartureAnimation 
+          onComplete={handleAnimationComplete} 
+          flightNumber={currentFlightNumber}
+        />
       )}
     </div>
   );

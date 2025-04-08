@@ -57,7 +57,7 @@ class BotService:
         try:
             # Wait for the flight to be active
             while not flight_state_manager.is_flight_active(flight_id):
-                await asyncio.sleep(1)
+                await asyncio.sleep(.25)
             
             # Get the initial hours remaining
             hours_remaining = flight_state_manager.get_hours_remaining(flight_id)
@@ -87,7 +87,7 @@ class BotService:
                         await self._make_purchase(flight_id, seat)
                 
                 # Wait for the next hour (0.5 seconds in our simulation)
-                await asyncio.sleep(0.25)
+                await asyncio.sleep(0.005)
                 
                 # Update hours remaining
                 hours_remaining = flight_state_manager.get_hours_remaining(flight_id)
