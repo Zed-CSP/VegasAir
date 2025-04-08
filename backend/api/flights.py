@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from backend.db.database import get_db, SessionLocal
 from backend.models.flight import Flight
 from backend.models.seat import Seat
-from backend.ws_manager import manager
+from backend.websocket.ws_manager import manager
 from backend.utils.constants import flight_state_manager
 
 router = APIRouter()

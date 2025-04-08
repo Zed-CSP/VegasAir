@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Optional
-from backend.ws_manager import manager
+from backend.websocket.ws_manager import manager
 from backend.utils.constants import flight_state_manager
 from backend.services.purchase_history_service import purchase_history_service
 

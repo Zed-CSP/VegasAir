@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from backend.db.database import SessionLocal
 from backend.models.seat import Seat
-from backend.ws_manager import manager
+from backend.websocket.ws_manager import manager
 from backend.utils.constants import flight_state_manager
 
 class BotService:
