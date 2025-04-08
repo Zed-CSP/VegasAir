@@ -4,7 +4,7 @@ A full-stack application for airline booking simulation with dynamic pricing eng
 
 ## Architecture
 
-![Microservice Architecture](docs/assets/img/Microservice.jpeg)
+![Microservice Architecture](docs/assets/img/Microservice.png)
 
 ## Project Structure
 
