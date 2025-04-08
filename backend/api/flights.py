@@ -8,7 +8,7 @@ from backend.database import get_db, SessionLocal
 from backend.models.flight import Flight
 from backend.models.seat import Seat
 from backend.ws_manager import manager
-from backend.services.countdown_service import countdown_service
+from backend.utils.constants import flight_state_manager
 
 router = APIRouter()
 
@@ -82,8 +82,8 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
             days_until_departure = seats[0].days_until_departure
             
             # Send initial time update with current values from the service
-            if flight_id in countdown_service._hours_remaining:
-                total_hours = countdown_service._hours_remaining[flight_id]
+            if flight_state_manager.is_flight_active(flight_id):
+                total_hours = flight_state_manager.get_hours_remaining(flight_id)
                 days = total_hours // 24
                 hours = total_hours % 24
                 await websocket.send_json({

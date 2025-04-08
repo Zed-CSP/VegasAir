@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from sqlalchemy.orm import Session
 
-from backend.config import settings
+from backend.config.config import settings
 from backend.database import engine, SessionLocal
 from backend.models.base import Base
 from backend.models.flight import Flight

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from backend.database import SessionLocal
 from backend.models.seat import Seat
 from backend.ws_manager import manager
-from backend.services.countdown_service import countdown_service
+from backend.utils.constants import flight_state_manager
 
 class BotService:
     """Service to manage bots that simulate seat purchases"""
@@ -55,12 +55,12 @@ class BotService:
     async def _run_bots(self, flight_id: int, available_seats: List[dict]):
         """Run bots for a flight"""
         try:
-            # Wait for the countdown service to be ready
-            while flight_id not in countdown_service._hours_remaining:
+            # Wait for the flight to be active
+            while not flight_state_manager.is_flight_active(flight_id):
                 await asyncio.sleep(1)
             
             # Get the initial hours remaining
-            hours_remaining = countdown_service._hours_remaining[flight_id]
+            hours_remaining = flight_state_manager.get_hours_remaining(flight_id)
             days_remaining = hours_remaining // 24
             
             # Calculate the base purchase rate (purchases per day)
@@ -90,7 +90,7 @@ class BotService:
                 await asyncio.sleep(0.25)
                 
                 # Update hours remaining
-                hours_remaining = countdown_service._hours_remaining.get(flight_id, 0)
+                hours_remaining = flight_state_manager.get_hours_remaining(flight_id)
                 days_remaining = hours_remaining // 24
                 
                 # If we've reached the end of the flight, stop
@@ -285,7 +285,7 @@ class BotService:
         self._active_bots[flight_id].add(seat['id'])
         
         # Get the current hours remaining
-        hours_remaining = countdown_service._hours_remaining.get(flight_id, 0)
+        hours_remaining = flight_state_manager.get_hours_remaining(flight_id)
         days_remaining = hours_remaining // 24
         
         # Calculate a price based on days remaining and seat class

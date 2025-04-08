@@ -2,12 +2,12 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from backend.ws_manager import manager
+from backend.utils.constants import flight_state_manager
 
 class CountdownService:
     """Service to manage countdown timers for flights"""
     
     def __init__(self):
-        self._hours_remaining: Dict[int, int] = {}
         self._tasks: Dict[int, asyncio.Task] = {}
     
     def start_timer(self, flight_id: int, hours_until_departure: int):
@@ -16,7 +16,7 @@ class CountdownService:
             # Timer already running for this flight
             return
         
-        self._hours_remaining[flight_id] = hours_until_departure
+        flight_state_manager.update_hours_remaining(flight_id, hours_until_departure)
         
         # Create a task for the timer
         self._tasks[flight_id] = asyncio.create_task(
@@ -30,16 +30,15 @@ class CountdownService:
         if flight_id in self._tasks:
             self._tasks[flight_id].cancel()
             del self._tasks[flight_id]
-            if flight_id in self._hours_remaining:
-                del self._hours_remaining[flight_id]
+            flight_state_manager.set_flight_inactive(flight_id)
             print(f"Timer stopped for flight {flight_id}")
     
     async def _run_timer(self, flight_id: int):
         """Run the countdown timer for a flight"""
         try:
-            while self._hours_remaining.get(flight_id, 0) > 0:
+            while flight_state_manager.get_hours_remaining(flight_id) > 0:
                 # Get current hours remaining
-                hours = self._hours_remaining[flight_id]
+                hours = flight_state_manager.get_hours_remaining(flight_id)
                 days = hours // 24
                 remaining_hours = hours % 24
                 
@@ -57,11 +56,12 @@ class CountdownService:
                 await asyncio.sleep(0.25)
                 
                 # Update hours remaining (decrement by 4 hours)
-                if flight_id in self._hours_remaining:
-                    self._hours_remaining[flight_id] -= 4
+                current_hours = flight_state_manager.get_hours_remaining(flight_id)
+                if current_hours > 0:
+                    flight_state_manager.update_hours_remaining(flight_id, current_hours - 4)
                 
                 # If we've reached zero, stop
-                if self._hours_remaining.get(flight_id, 0) <= 0:
+                if flight_state_manager.get_hours_remaining(flight_id) <= 0:
                     break
                 
         except asyncio.CancelledError:
@@ -73,8 +73,7 @@ class CountdownService:
             # Clean up
             if flight_id in self._tasks:
                 del self._tasks[flight_id]
-            if flight_id in self._hours_remaining:
-                del self._hours_remaining[flight_id]
+            flight_state_manager.set_flight_inactive(flight_id)
 
 # Global instance
 countdown_service = CountdownService() 
