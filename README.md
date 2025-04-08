@@ -40,7 +40,6 @@ vegasair/
 - **Dynamic Pricing Engine**
   - Real-time price adjustments
   - Demand-based pricing
-  - Competitive market analysis
 
 - **Machine Learning Components**
   - Demand forecasting using multiple models (ARIMA, Prophet, LSTM)
@@ -49,8 +48,7 @@ vegasair/
 
 - **Booking System**
   - Real-time seat availability
-  - Secure payment processing
-  - Booking confirmation and management
+  - User and simulated bookings live with Web-Sockets 
 
 - **Modern Tech Stack**
   - FastAPI backend with PostgreSQL
