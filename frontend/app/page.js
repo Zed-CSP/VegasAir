@@ -7,6 +7,7 @@ import Legend from './components/Legend';
 import SelectedSeatModal from './components/SelectedSeatModal';
 import CountdownTimer from './components/CountdownTimer';
 import useWebSocket from './hooks/useWebSocket';
+import FlightDepartureAnimation from './components/FlightDepartureAnimation';
 
 export default function Home() {
   const [seats, setSeats] = useState([]);
@@ -15,7 +16,9 @@ export default function Home() {
   const [selectedSeat, setSelectedSeat] = useState(null);
   const [daysUntilDeparture, setDaysUntilDeparture] = useState(0);
   const [hours, setHours] = useState(0);
-  const flightId = 1; // For now, we're only working with flight 1
+  const [showDepartureAnimation, setShowDepartureAnimation] = useState(false);
+  const [currentFlightId, setCurrentFlightId] = useState(1); // Start with flight 1
+  const [currentFlightNumber, setCurrentFlightNumber] = useState("001");
   
   // Use refs to store pending updates
   const pendingSeatUpdates = useRef(new Map());
@@ -59,11 +62,39 @@ export default function Home() {
       // Update time immediately as it's less frequent
       setDaysUntilDeparture(data.days_until_departure);
       setHours(data.hours);
+    } else if (data.type === "FLIGHT_DEPARTURE") {
+      // Show departure animation and store new flight ID
+      setShowDepartureAnimation(true);
+      setCurrentFlightId(data.new_flight);
     }
   }, []);
 
-  // Initialize WebSocket connection
-  const { sendMessage } = useWebSocket(flightId, handleWebSocketMessage);
+  // Handle animation completion
+  const handleAnimationComplete = useCallback(() => {
+    setShowDepartureAnimation(false);
+    
+    // The WebSocket connection will automatically reconnect to the new flight
+    // because we're updating currentFlightId, which triggers the useEffect
+    // that calls fetchFlightData
+    
+    // Start the timer and bots for the new flight
+    if (currentFlightId) {
+      const startNewFlight = async () => {
+        try {
+          console.log(`Starting timer and bots for flight ${currentFlightId}`);
+          await axios.post(`http://localhost:8000/api/v1/flights/${currentFlightId}/start`);
+          console.log(`Successfully started timer and bots for flight ${currentFlightId}`);
+        } catch (err) {
+          console.error(`Error starting timer and bots for flight ${currentFlightId}:`, err);
+        }
+      };
+      
+      startNewFlight();
+    }
+  }, [currentFlightId]);
+
+  // Initialize WebSocket connection with the current flight ID
+  const { sendMessage } = useWebSocket(currentFlightId, handleWebSocketMessage);
 
   useEffect(() => {
     fetchFlightData();
@@ -74,17 +105,18 @@ export default function Home() {
         clearTimeout(updateTimeout.current);
       }
     };
-  }, []);
+  }, [currentFlightId]); // Re-fetch when flight ID changes
 
   const fetchFlightData = async () => {
     try {
       // Fetch seats
-      const seatsResponse = await axios.get(`http://localhost:8000/api/v1/flights/${flightId}/seats`);
+      const seatsResponse = await axios.get(`http://localhost:8000/api/v1/flights/${currentFlightId}/seats`);
       setSeats(seatsResponse.data);
       
       // Fetch flight details including days until departure
-      const flightResponse = await axios.get(`http://localhost:8000/api/v1/flights/${flightId}`);
+      const flightResponse = await axios.get(`http://localhost:8000/api/v1/flights/${currentFlightId}`);
       setDaysUntilDeparture(flightResponse.data.days_until_departure);
+      setCurrentFlightNumber(flightResponse.data.flight_number);
       
       setLoading(false);
     } catch (err) {
@@ -131,7 +163,9 @@ export default function Home() {
 
   return (
     <div className="container">
-      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>VegasAir Flight 001</h1>
+      <h1 style={{ textAlign: 'center', marginBottom: '20px' }}>
+        VegasAir Flight {currentFlightNumber}
+      </h1>
       
       <CountdownTimer daysUntilDeparture={daysUntilDeparture} hours={hours} />
       
@@ -148,6 +182,10 @@ export default function Home() {
         selectedSeat={selectedSeat}
         onSeatClick={handleSeatClick}
       />
+
+      {showDepartureAnimation && (
+        <FlightDepartureAnimation onComplete={handleAnimationComplete} />
+      )}
     </div>
   );
 }

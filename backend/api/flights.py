@@ -9,6 +9,8 @@ from backend.models.flight import Flight
 from backend.models.seat import Seat
 from backend.websocket.ws_manager import manager
 from backend.utils.constants import flight_state_manager
+from backend.services.countdown_service import countdown_service
+from backend.services.bot_service import bot_service
 
 router = APIRouter()
 
@@ -160,4 +162,48 @@ async def websocket_endpoint(websocket: WebSocket, flight_id: int):
         try:
             await websocket.close()
         except:
-            pass 
+            pass
+
+@router.post("/flights/{flight_id}/start", response_model=dict)
+def start_flight(flight_id: int, db: Session = Depends(get_db)):
+    """Start the timer and bots for a flight"""
+    # Check if the flight exists
+    flight = db.query(Flight).filter(Flight.id == flight_id).first()
+    if not flight:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    
+    # Get seats for the flight
+    seats = db.query(Seat).filter(Seat.flight_id == flight_id).all()
+    if not seats:
+        raise HTTPException(status_code=404, detail="No seats found for this flight")
+    
+    # Get days until departure from the first seat
+    days_until_departure = seats[0].days_until_departure
+    
+    # Start the countdown timer
+    countdown_service.start_timer(flight_id, days_until_departure * 24)  # Convert days to hours
+    
+    # Convert seats to dictionary format for bot service
+    seat_dicts = [{
+        'id': seat.id,
+        'row_number': seat.row_number,
+        'seat_letter': seat.seat_letter,
+        'is_occupied': seat.is_occupied,
+        'class_type': seat.class_type,
+        'is_window': seat.is_window,
+        'is_aisle': seat.is_aisle,
+        'is_middle': seat.is_middle,
+        'is_extra_legroom': seat.is_extra_legroom,
+        'base_price': seat.base_price,
+        'sale_price': seat.sale_price,
+        'days_until_departure': seat.days_until_departure
+    } for seat in seats]
+    
+    # Start bots for the flight
+    bot_service.start_bots(flight_id, seat_dicts)
+    
+    return {
+        "message": f"Started timer and bots for flight {flight.flight_number}",
+        "flight_id": flight_id,
+        "days_until_departure": days_until_departure
+    } 

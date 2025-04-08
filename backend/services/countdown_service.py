@@ -2,8 +2,11 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 from backend.websocket.ws_manager import manager
-from backend.utils.constants import flight_state_manager
+from backend.utils.constants import flight_state_manager, create_next_flight
 from backend.services.purchase_history_service import purchase_history_service
+from backend.db.database import SessionLocal
+from backend.models.flight import Flight
+from backend.models.seat import Seat
 
 class CountdownService:
     """Service to manage countdown timers for flights"""
@@ -65,6 +68,63 @@ class CountdownService:
                 if flight_state_manager.get_hours_remaining(flight_id) <= 0:
                     # Collect purchase history before stopping
                     purchase_history_service.collect_and_store_purchase_data(flight_id)
+                    
+                    # Create the next flight
+                    try:
+                        # Get the current flight number
+                        db = SessionLocal()
+                        current_flight = db.query(Flight).filter(Flight.id == flight_id).first()
+                        if current_flight:
+                            # Create the next flight with the incremented flight number
+                            new_flight_id = create_next_flight(current_flight.flight_number)
+                            if new_flight_id:
+                                # Start the timer and bots for the new flight
+                                try:
+                                    # Get seats for the new flight
+                                    new_seats = db.query(Seat).filter(Seat.flight_id == new_flight_id).all()
+                                    if new_seats:
+                                        # Get days until departure from the first seat
+                                        days_until_departure = new_seats[0].days_until_departure
+                                        
+                                        # Start the countdown timer
+                                        self.start_timer(new_flight_id, days_until_departure * 24)  # Convert days to hours
+                                        
+                                        # Convert seats to dictionary format for bot service
+                                        seat_dicts = [{
+                                            'id': seat.id,
+                                            'row_number': seat.row_number,
+                                            'seat_letter': seat.seat_letter,
+                                            'is_occupied': seat.is_occupied,
+                                            'class_type': seat.class_type,
+                                            'is_window': seat.is_window,
+                                            'is_aisle': seat.is_aisle,
+                                            'is_middle': seat.is_middle,
+                                            'is_extra_legroom': seat.is_extra_legroom,
+                                            'base_price': seat.base_price,
+                                            'sale_price': seat.sale_price,
+                                            'days_until_departure': seat.days_until_departure
+                                        } for seat in new_seats]
+                                        
+                                        # Start bots for the flight
+                                        from backend.services.bot_service import bot_service
+                                        bot_service.start_bots(new_flight_id, seat_dicts)
+                                        
+                                        print(f"Started timer and bots for new flight {new_flight_id}")
+                                except Exception as e:
+                                    print(f"Error starting timer and bots for new flight: {e}")
+                                
+                                # Broadcast flight departure and new flight creation
+                                await manager.broadcast_to_flight(flight_id, {
+                                    "type": "FLIGHT_DEPARTURE",
+                                    "departed_flight": current_flight.flight_number,
+                                    "new_flight": new_flight_id
+                                })
+                                print(f"Created new flight {new_flight_id} after flight {current_flight.flight_number} departed")
+                    except Exception as e:
+                        print(f"Error creating next flight: {e}")
+                    finally:
+                        if 'db' in locals():
+                            db.close()
                     break
                 
         except asyncio.CancelledError:

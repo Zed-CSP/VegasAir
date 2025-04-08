@@ -78,13 +78,22 @@ const useWebSocket = (flightId, onMessage) => {
     }
   }, [flightId, onMessage]);
 
+  // Close existing connection when flight ID changes
   useEffect(() => {
+    if (ws.current) {
+      console.log(`Closing WebSocket connection for previous flight`);
+      ws.current.close();
+      ws.current = null;
+    }
+    
+    // Reset reconnect attempts when flight ID changes
+    reconnectAttempts.current = 0;
+    
+    // Connect to the new flight
     if (flightId) {
       connect();
-    } else {
-      console.warn('No flightId provided to useWebSocket hook');
     }
-
+    
     // Cleanup on unmount
     return () => {
       if (reconnectTimeout.current) {

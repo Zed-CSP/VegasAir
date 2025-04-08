@@ -114,8 +114,21 @@ def create_next_flight(previous_flight_number: str = None) -> int:
         db.add(new_flight)
         db.flush()  # This gets us the new flight ID
         
-        # Create seats for the flight using the dedicated function
-        create_seats(new_flight.id, db)
+        # Create seats for the flight using the dedicated function with the same parameters as init_db.py
+        create_seats(
+            flight_id=new_flight.id,
+            db=db,
+            num_rows=20,  # 20 rows instead of default 30
+            first_class_rows=4,
+            business_class_rows=8,
+            extra_legroom_rows=[9, 10],  # Same as init_db.py
+            first_class_price=500.0,
+            business_class_price=300.0,
+            economy_class_price=150.0,
+            window_aisle_extra=10.0,
+            legroom_extra=10.0,
+            batch_size=120  # Add seats in batches of 120 for better performance
+        )
         
         db.commit()
         print(f"Created new flight {next_flight_number} with ID {new_flight.id}")
