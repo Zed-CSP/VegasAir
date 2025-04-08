@@ -4,6 +4,7 @@ from typing import List, Dict
 import asyncio
 from datetime import datetime, timedelta
 import json
+import httpx
 
 from backend.db.database import get_db, SessionLocal
 from backend.models.flight import Flight
@@ -13,7 +14,6 @@ from backend.websocket.ws_manager import manager
 from backend.utils.constants import flight_state_manager
 from backend.services.countdown_service import countdown_service
 from backend.services.bot_service import bot_service
-from backend.services.demand_forecasting import demand_forecaster
 
 router = APIRouter()
 
@@ -263,31 +263,42 @@ def get_purchase_history(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/demand-forecast", response_model=Dict)
-def get_demand_forecast(db: Session = Depends(get_db)):
-    """
-    Generate demand forecasts using multiple models (ARIMA, Prophet, LSTM).
-    Returns forecasts for each seat class and model type.
-    """
+@router.get("/flights/{flight_id}/demand-forecast")
+async def get_demand_forecast(flight_id: int, db: Session = Depends(get_db)):
+    """Get demand forecast for a flight from the ML service"""
     try:
-        # Get purchase history data
-        records = db.query(PurchaseHistory).all()
+        # Get historical purchase data
+        purchase_history = db.query(PurchaseHistory).filter(
+            PurchaseHistory.flight_id == flight_id
+        ).all()
         
-        # Convert records to list of dictionaries
-        history_data = []
-        for record in records:
-            history_data.append({
-                "flight_number": record.flight_number,
-                "class_type": record.class_type,
-                "daily_purchases": record.daily_purchases
-            })
+        if not purchase_history:
+            return {"message": "No purchase history available for forecasting"}
         
-        # Generate forecasts
-        forecasts = demand_forecaster.generate_forecasts(history_data)
+        # Format data for ML service
+        historical_data = [{
+            "timestamp": ph.timestamp.isoformat(),
+            "price": ph.price,
+            "class_type": ph.class_type
+        } for ph in purchase_history]
         
-        return {
-            "status": "success",
-            "forecasts": forecasts
-        }
+        # Call ML service
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:8001/predict",
+                json={
+                    "historical_data": historical_data,
+                    "forecast_horizon": 7  # 7 days forecast
+                }
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Error getting forecast from ML service"
+                )
+                
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
