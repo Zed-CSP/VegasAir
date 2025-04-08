@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional
 from backend.ws_manager import manager
 from backend.utils.constants import flight_state_manager
+from backend.services.purchase_history_service import purchase_history_service
 
 class CountdownService:
     """Service to manage countdown timers for flights"""
@@ -60,8 +61,10 @@ class CountdownService:
                 if current_hours > 0:
                     flight_state_manager.update_hours_remaining(flight_id, current_hours - 4)
                 
-                # If we've reached zero, stop
+                # If we've reached zero, collect purchase history and stop
                 if flight_state_manager.get_hours_remaining(flight_id) <= 0:
+                    # Collect purchase history before stopping
+                    purchase_history_service.collect_and_store_purchase_data(flight_id)
                     break
                 
         except asyncio.CancelledError:
