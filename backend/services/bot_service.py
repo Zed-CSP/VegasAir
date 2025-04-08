@@ -3,7 +3,7 @@ import random
 from typing import Dict, List, Set, Optional
 from datetime import datetime, timedelta
 
-from backend.database import SessionLocal
+from backend.db.database import SessionLocal
 from backend.models.seat import Seat
 from backend.ws_manager import manager
 from backend.utils.constants import flight_state_manager

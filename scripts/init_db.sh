@@ -6,6 +6,6 @@ psql -U postgres -c "CREATE DATABASE vegasair;" || true
 
 # Run the database initialization script
 echo "Running database initialization script..."
-python3 -m backend.init_db
+python3 -m backend.db.init_db
 
 echo "Database initialization complete!" 

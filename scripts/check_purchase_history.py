@@ -5,7 +5,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from sqlalchemy.orm import Session
-from backend.database import SessionLocal
+from backend.db.database import SessionLocal
 from backend.models.purchase_history import PurchaseHistory
 
 def check_purchase_history():

@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Dict, List
 from sqlalchemy.orm import Session
 
-from backend.database import SessionLocal
+from backend.db.database import SessionLocal
 from backend.models.flight import Flight
 from backend.models.seat import Seat
 from backend.models.purchase_history import PurchaseHistory

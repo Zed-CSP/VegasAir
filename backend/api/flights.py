@@ -4,7 +4,7 @@ from typing import List
 import asyncio
 from datetime import datetime, timedelta
 
-from backend.database import get_db, SessionLocal
+from backend.db.database import get_db, SessionLocal
 from backend.models.flight import Flight
 from backend.models.seat import Seat
 from backend.ws_manager import manager

@@ -4,7 +4,7 @@ import asyncio
 from sqlalchemy.orm import Session
 
 from backend.config.config import settings
-from backend.database import engine, SessionLocal
+from backend.db.database import engine, SessionLocal
 from backend.models.base import Base
 from backend.models.flight import Flight
 from backend.models.seat import Seat
