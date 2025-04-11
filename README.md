@@ -4,7 +4,22 @@ A full-stack application for airline booking simulation with dynamic pricing eng
 
 ## Architecture
 
-![Microservice Architecture](docs/assets/img/microservice.png)
+Our microservice architecture uses Redis instead of RabbitMQ for both message brokering and result storage:
+
+![Microservice Architecture](docs/assets/img/Microservice.jpeg)
+
+Key architectural components:
+- **Frontend Client**: Next.js application that communicates with the backend API
+- **FastAPI Backend**: Main application server handling business logic and API requests
+- **Redis**: Acts as both message broker and result backend for ML tasks
+- **Celery Workers**: Run ML models (ARIMA, Prophet, LSTM) for demand forecasting
+- **ML Models**: Integrated directly into Celery workers for efficient processing
+
+This architecture enables:
+- Asynchronous processing of computationally intensive ML tasks
+- Scalable worker processes for handling multiple predictions
+- Real-time communication between services
+- Efficient task queuing and result storage
 
 ## Project Structure
 

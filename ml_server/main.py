@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api import predictions
+from ml_server.api import predictions
 from datetime import datetime
 
 app = FastAPI(
