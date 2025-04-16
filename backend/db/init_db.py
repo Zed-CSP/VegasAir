@@ -21,9 +21,15 @@ def init_db():
     db = SessionLocal()
     
     try:
+        # Calculate departure date (120 days from now at 12:00 PM)
+        today = datetime.now().date()
+        future_date = today + timedelta(days=120)
+        departure_date = datetime.combine(future_date, datetime.strptime('12:00', '%H:%M').time())
+        
         # Create a sample flight
         flight = Flight(
-            flight_number="001"
+            flight_number="001",
+            departure_date=departure_date
         )
         db.add(flight)
         db.commit()

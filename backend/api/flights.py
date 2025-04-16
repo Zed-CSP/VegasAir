@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("/flights/", response_model=List[dict])
 def get_flights(db: Session = Depends(get_db)):
     flights = db.query(Flight).all()
-    return [{"id": flight.id, "flight_number": flight.flight_number} for flight in flights]
+    return [{"id": flight.id, "flight_number": flight.flight_number, "departure_date": flight.departure_date} for flight in flights]
 
 @router.get("/flights/active", response_model=dict)
 def get_active_flight(db: Session = Depends(get_db)):
@@ -48,6 +48,7 @@ def get_active_flight(db: Session = Depends(get_db)):
     return {
         "id": active_flight.id,
         "flight_number": active_flight.flight_number,
+        "departure_date": active_flight.departure_date,
         "days_until_departure": days_until_departure
     }
 
@@ -64,6 +65,7 @@ def get_flight(flight_id: int, db: Session = Depends(get_db)):
     return {
         "id": flight.id,
         "flight_number": flight.flight_number,
+        "departure_date": flight.departure_date,
         "days_until_departure": days_until_departure
     }
 
@@ -256,7 +258,8 @@ def get_purchase_history(db: Session = Depends(get_db)):
             history_data.append({
                 "flight_number": record.flight_number,
                 "class_type": record.class_type,
-                "daily_purchases": record.daily_purchases
+                "daily_purchases": record.daily_purchases,
+                "departure_date": record.departure_date.isoformat()
             })
         
         return history_data

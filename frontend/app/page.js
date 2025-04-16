@@ -18,8 +18,9 @@ export default function Home() {
   const [daysUntilDeparture, setDaysUntilDeparture] = useState(0);
   const [hours, setHours] = useState(0);
   const [showDepartureAnimation, setShowDepartureAnimation] = useState(false);
-  const [currentFlightId, setCurrentFlightId] = useState(null); // Initialize as null
+  const [currentFlightId, setCurrentFlightId] = useState(null);
   const [currentFlightNumber, setCurrentFlightNumber] = useState("");
+  const [departureDate, setDepartureDate] = useState(null);
   
   // Use refs to store pending updates
   const pendingSeatUpdates = useRef(new Map());
@@ -34,6 +35,7 @@ export default function Home() {
         setCurrentFlightId(activeFlight.id);
         setCurrentFlightNumber(activeFlight.flight_number);
         setDaysUntilDeparture(activeFlight.days_until_departure);
+        setDepartureDate(activeFlight.departure_date);
       }
     } catch (err) {
       console.error('Error fetching current flight:', err);
@@ -84,27 +86,41 @@ export default function Home() {
       // Update time immediately as it's less frequent
       setDaysUntilDeparture(data.days_until_departure);
       setHours(data.hours);
+      
+      // Update departure date from the WebSocket message
+      if (data.departure_date) {
+        setDepartureDate(data.departure_date);
+      }
     } else if (data.type === "FLIGHT_DEPARTURE") {
       // Show departure animation and store new flight ID
       setShowDepartureAnimation(true);
       setCurrentFlightId(data.new_flight);
+      // Fetch new flight details to get the new flight number
+      axios.get(`http://localhost:8000/api/v1/flights/${data.new_flight}`)
+        .then(response => {
+          setCurrentFlightNumber(response.data.flight_number);
+        })
+        .catch(err => console.error('Error fetching new flight details:', err));
     }
   }, []);
 
-  // Handle animation completion
+  // Modify the handleAnimationComplete to also fetch flight details
   const handleAnimationComplete = useCallback(() => {
     setShowDepartureAnimation(false);
     
-    // The WebSocket connection will automatically reconnect to the new flight
-    // because we're updating currentFlightId, which triggers the useEffect
-    // that calls fetchFlightData
-    
-    // Start the timer and bots for the new flight
+    // Fetch the new flight details to ensure we have the correct flight number
     if (currentFlightId) {
       const startNewFlight = async () => {
         try {
           console.log(`Starting timer and bots for flight ${currentFlightId}`);
           await axios.post(`http://localhost:8000/api/v1/flights/${currentFlightId}/start`);
+          
+          // Fetch updated flight details
+          const flightResponse = await axios.get(`http://localhost:8000/api/v1/flights/${currentFlightId}`);
+          setCurrentFlightNumber(flightResponse.data.flight_number);
+          setDaysUntilDeparture(flightResponse.data.days_until_departure);
+          setDepartureDate(flightResponse.data.departure_date);
+          
           console.log(`Successfully started timer and bots for flight ${currentFlightId}`);
         } catch (err) {
           console.error(`Error starting timer and bots for flight ${currentFlightId}:`, err);
@@ -191,6 +207,7 @@ export default function Home() {
         daysUntilDeparture={daysUntilDeparture} 
         hours={hours} 
         flightNumber={currentFlightNumber}
+        departureDate={departureDate}
       />
       
       <SelectedSeatModal 

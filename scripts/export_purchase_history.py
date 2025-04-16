@@ -2,7 +2,7 @@
 import os
 import sys
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # Add the project root to Python path
@@ -15,7 +15,7 @@ from backend.config.config import settings
 
 def export_purchase_history(output_dir: str = "data"):
     """
-    Export all purchase history to a single CSV file.
+    Export all purchase history to a single CSV file with enhanced time series features.
     
     Args:
         output_dir: Directory to save CSV file (will be created if doesn't exist)
@@ -34,20 +34,43 @@ def export_purchase_history(output_dir: str = "data"):
         
         with open(filepath, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            # Write header
-            writer.writerow(['date', 'purchases', 'flight_number', 'class_type'])
+            # Write header with enhanced features
+            writer.writerow([
+                'purchase_date',           # Actual calendar date of purchase
+                'day_of_week',            # 0-6 (Monday-Sunday)
+                'month',                   # 1-12
+                'is_weekend',             # 0 or 1
+                'days_until_departure',    # Original days until departure
+                'purchases',               # Number of purchases
+                'flight_number',           # Flight number
+                'class_type',             # Cabin class
+                'departure_date'           # Scheduled departure date
+            ])
             
             # Write data for all records
             for record in records:
-                for date, purchases in record.daily_purchases.items():
+                departure_date = record.departure_date
+                for days_until_departure, purchases in record.daily_purchases.items():
+                    # Calculate actual purchase date
+                    days_until = int(days_until_departure)
+                    purchase_date = departure_date - timedelta(days=days_until)
+                    
+                    # Calculate additional time features
+                    is_weekend = 1 if purchase_date.weekday() >= 5 else 0
+                    
                     writer.writerow([
-                        date,
+                        purchase_date.strftime('%Y-%m-%d'),
+                        purchase_date.weekday(),
+                        purchase_date.month,
+                        is_weekend,
+                        days_until_departure,
                         purchases,
                         record.flight_number,
-                        record.class_type
+                        record.class_type,
+                        departure_date.strftime('%Y-%m-%d %H:%M:%S')
                     ])
         
-        print(f"Exported all purchase history to {filepath}")
+        print(f"Exported enhanced purchase history to {filepath}")
             
     finally:
         db.close()

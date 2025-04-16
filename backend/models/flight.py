@@ -7,6 +7,7 @@ class Flight(BaseModel):
     __tablename__ = "flights"
 
     flight_number = Column(String(3), unique=True, index=True)  # Format: 001, 002, etc.
+    departure_date = Column(DateTime, nullable=False, index=True)  # Add departure date
     
     # Relationship to seats
     seats = relationship("Seat", back_populates="flight", cascade="all, delete-orphan")

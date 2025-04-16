@@ -50,7 +50,8 @@ class PurchaseHistoryService:
                 history = PurchaseHistory(
                     flight_number=flight.flight_number,
                     class_type=class_type,
-                    daily_purchases=daily_data
+                    daily_purchases=daily_data,
+                    departure_date=flight.departure_date
                 )
                 db.add(history)
             

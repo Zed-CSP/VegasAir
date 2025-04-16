@@ -2,6 +2,7 @@ from typing import TypedDict, Dict
 from backend.db.database import SessionLocal
 from backend.models.flight import Flight
 from backend.models.seat import Seat
+from datetime import datetime, timedelta
 
 class FlightStatus(TypedDict):
     hours_remaining: int
@@ -22,7 +23,7 @@ def create_seats(
     batch_size: int = None
 ) -> None:
     """
-    Create all seats for a given flight.
+    STRUCT to create all seats for a given flight.
     
     Args:
         flight_id: The ID of the flight to create seats for
@@ -104,13 +105,31 @@ def create_next_flight(previous_flight_number: str = None) -> int:
         # If no previous flight number, start with 001
         if not previous_flight_number:
             next_flight_number = "001"
+            # For first flight, use 120 days from now
+            today = datetime.now().date()
+            future_date = today + timedelta(days=120)
+            departure_date = datetime.combine(future_date, datetime.strptime('12:00', '%H:%M').time())
         else:
             # Increment the flight number
             next_num = int(previous_flight_number) + 1
             next_flight_number = f"{next_num:03d}"  # Format as 3 digits with leading zeros
+            
+            # Get the previous flight's departure date
+            previous_flight = db.query(Flight).filter(Flight.flight_number == previous_flight_number).first()
+            if previous_flight:
+                # Set departure date to one day after the previous flight
+                departure_date = previous_flight.departure_date + timedelta(days=1)
+            else:
+                # Fallback if previous flight not found
+                today = datetime.now().date()
+                future_date = today + timedelta(days=120)
+                departure_date = datetime.combine(future_date, datetime.strptime('12:00', '%H:%M').time())
         
         # Create the new flight
-        new_flight = Flight(flight_number=next_flight_number)
+        new_flight = Flight(
+            flight_number=next_flight_number,
+            departure_date=departure_date
+        )
         db.add(new_flight)
         db.flush()  # This gets us the new flight ID
         

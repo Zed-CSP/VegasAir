@@ -70,3 +70,12 @@ coverage.xml
 
 # Local development settings
 local_settings.py 
+
+# Local Data
+/data/
+
+# Local Models
+/models/
+
+# Local Logs
+/logs/
