@@ -9,6 +9,12 @@ import CountdownTimer from './components/CountdownTimer';
 import useWebSocket from './hooks/useWebSocket';
 import FlightDepartureAnimation from './components/FlightDepartureAnimation';
 import DemandForecast from './components/DemandForecast';
+import RevenueStats from './components/RevenueStats';
+import GraphLegend from './components/GraphLegend';
+import RevenueDistribution from './components/RevenueDistribution';
+import PriceEvolution from './components/PriceEvolution';
+import OccupancyHeatMap from './components/OccupancyHeatMap';
+import PriceSensitivity from './components/PriceSensitivity';
 
 export default function Home() {
   const [seats, setSeats] = useState([]);
@@ -21,6 +27,7 @@ export default function Home() {
   const [currentFlightId, setCurrentFlightId] = useState(null);
   const [currentFlightNumber, setCurrentFlightNumber] = useState("");
   const [departureDate, setDepartureDate] = useState(null);
+  const [selectedGraph, setSelectedGraph] = useState('demand');
   
   // Use refs to store pending updates
   const pendingSeatUpdates = useRef(new Map());
@@ -198,17 +205,57 @@ export default function Home() {
     }
   }, [selectedSeat, sendMessage]);
 
+  const handleGraphSelect = (graphId) => {
+    setSelectedGraph(graphId);
+  };
+
+  const renderGraph = () => {
+    switch(selectedGraph) {
+      case 'demand':
+        return <DemandForecast />;
+      case 'revenue':
+        return <RevenueDistribution />;
+      case 'price':
+        return <PriceEvolution />;
+      case 'occupancy':
+        return <OccupancyHeatMap />;
+      case 'sensitivity':
+        return <PriceSensitivity />;
+      default:
+        return <DemandForecast />;
+    }
+  };
+
   if (loading) return <div className="container">Loading seats...</div>;
   if (error) return <div className="container">Error: {error}</div>;
 
   return (
     <div className="container">
-      <CountdownTimer 
-        daysUntilDeparture={daysUntilDeparture} 
-        hours={hours} 
-        flightNumber={currentFlightNumber}
-        departureDate={departureDate}
-      />
+      <div className="countdown-timer">
+        <div className="flight-info">
+          <h2>VegasAir Flight {currentFlightNumber}</h2>
+          <div className="departure-date">
+            <span className="departure-label">Departure Date:</span><br />
+            {departureDate ? new Date(departureDate).toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            }) : 'Loading...'}
+          </div>
+        </div>
+        <div className="countdown-items">
+          <div className="countdown-item">
+            <div className="countdown-value">{daysUntilDeparture}</div>
+            <div className="countdown-label">Days</div>
+          </div>
+          <div className="countdown-item">
+            <div className="countdown-value">{hours}</div>
+            <div className="countdown-label">Hours</div>
+          </div>
+        </div>
+        <RevenueStats seats={seats} currentFlightId={currentFlightId} />
+      </div>
       
       <SelectedSeatModal 
         selectedSeat={selectedSeat}
@@ -216,15 +263,25 @@ export default function Home() {
         onPurchase={handlePurchase}
       />
       
-      <Legend />
-
-      <SeatGrid 
-        seats={seats}
-        selectedSeat={selectedSeat}
-        onSeatClick={handleSeatClick}
-      />
-
-      <DemandForecast />
+      <div className="main-content">
+        <div className="seating-section">
+          <Legend />
+          <SeatGrid 
+            seats={seats}
+            selectedSeat={selectedSeat}
+            onSeatClick={handleSeatClick}
+          />
+        </div>
+        <div className="analytics-section">
+          <GraphLegend 
+            selectedGraph={selectedGraph} 
+            onSelectGraph={handleGraphSelect}
+          />
+          <div className="forecast-section">
+            {renderGraph()}
+          </div>
+        </div>
+      </div>
 
       {showDepartureAnimation && (
         <FlightDepartureAnimation 

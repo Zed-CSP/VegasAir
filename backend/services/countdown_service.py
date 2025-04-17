@@ -46,21 +46,12 @@ class CountdownService:
                 days = hours // 24
                 remaining_hours = hours % 24
                 
-                # Get the flight's departure date
-                db = SessionLocal()
-                try:
-                    flight = db.query(Flight).filter(Flight.id == flight_id).first()
-                    departure_date = flight.departure_date if flight else None
-                finally:
-                    db.close()
-                
                 # Broadcast the update to all clients
                 try:
                     await manager.broadcast_to_flight(flight_id, {
                         "type": "TIME_UPDATE",
                         "days_until_departure": days,
-                        "hours": remaining_hours,
-                        "departure_date": departure_date.isoformat() if departure_date else None
+                        "hours": remaining_hours
                     })
                 except Exception as e:
                     print(f"Error sending time update: {e}")

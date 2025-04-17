@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime, timedelta
 import json
 import httpx
+import numpy as np
 
 from backend.db.database import get_db, SessionLocal
 from backend.models.flight import Flight
@@ -303,5 +304,75 @@ async def get_demand_forecast(flight_id: int, db: Session = Depends(get_db)):
                     detail="Error getting forecast from ML service"
                 )
                 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/demand-forecast", response_model=Dict)
+def get_demand_forecast(db: Session = Depends(get_db)):
+    """
+    Get demand forecast for all classes.
+    Returns forecast data from multiple models.
+    """
+    try:
+        # For now, we'll generate dummy forecast data
+        # In a real implementation, this would use the ML service
+        
+        # Generate dates for the next 30 days
+        today = datetime.now()
+        dates = [today + timedelta(days=i) for i in range(30)]
+        
+        # Generate dummy forecasts for each class
+        forecasts = {
+            "first": {
+                "arima": {
+                    "forecast": [max(0, int(5 + np.random.normal(0, 1))) for _ in range(30)]
+                },
+                "prophet": {
+                    "forecast": [max(0, int(4 + np.random.normal(0, 1))) for _ in range(30)],
+                    "confidence_intervals": {
+                        "lower": [max(0, int(2 + np.random.normal(0, 1))) for _ in range(30)],
+                        "upper": [max(0, int(7 + np.random.normal(0, 1))) for _ in range(30)]
+                    }
+                },
+                "lstm": {
+                    "forecast": [max(0, int(6 + np.random.normal(0, 1))) for _ in range(30)]
+                }
+            },
+            "business": {
+                "arima": {
+                    "forecast": [max(0, int(10 + np.random.normal(0, 2))) for _ in range(30)]
+                },
+                "prophet": {
+                    "forecast": [max(0, int(9 + np.random.normal(0, 2))) for _ in range(30)],
+                    "confidence_intervals": {
+                        "lower": [max(0, int(5 + np.random.normal(0, 2))) for _ in range(30)],
+                        "upper": [max(0, int(14 + np.random.normal(0, 2))) for _ in range(30)]
+                    }
+                },
+                "lstm": {
+                    "forecast": [max(0, int(11 + np.random.normal(0, 2))) for _ in range(30)]
+                }
+            },
+            "economy": {
+                "arima": {
+                    "forecast": [max(0, int(20 + np.random.normal(0, 3))) for _ in range(30)]
+                },
+                "prophet": {
+                    "forecast": [max(0, int(19 + np.random.normal(0, 3))) for _ in range(30)],
+                    "confidence_intervals": {
+                        "lower": [max(0, int(15 + np.random.normal(0, 3))) for _ in range(30)],
+                        "upper": [max(0, int(25 + np.random.normal(0, 3))) for _ in range(30)]
+                    }
+                },
+                "lstm": {
+                    "forecast": [max(0, int(21 + np.random.normal(0, 3))) for _ in range(30)]
+                }
+            }
+        }
+        
+        return {
+            "forecasts": forecasts,
+            "generated_at": datetime.now().isoformat()
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
